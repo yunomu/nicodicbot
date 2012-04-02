@@ -3,7 +3,6 @@ import Text.XML.HaXml
 import Text.XML.HaXml.Posn
 import Text.XML.HaXml.Util
 import Codec.Binary.UTF8.String (encodeString, decodeString)
-
 import Network.Curl hiding (Content)
 {- test stub
 curlGetString :: String -> [a] -> IO (a, String)
@@ -12,14 +11,10 @@ curlGetString path _ = do
     return (200, str)
 ---}
 
-data Config = Config { rssUri :: String }
-  deriving (Show)
+import Config
 
 data Entry = Entry { title :: String }
   deriving (Show)
-
-getConfig :: IO Config
-getConfig = return Config {rssUri = "http://dic.nicovideo.jp/feed/rss/u/a"}
 
 entries :: String -> [Entry]
 entries = map entry . (deep $ tag "title") . rootContent
@@ -35,7 +30,7 @@ entries = map entry . (deep $ tag "title") . rootContent
 
 main :: IO ()
 main = do
-    config <- getConfig
+    config <- loadConfig "nicodicbot.config"
     (code, rss) <- curlGetString (rssUri config) []
     mapM_ (putStrLn . title) $ entries $ decodeString rss
 
