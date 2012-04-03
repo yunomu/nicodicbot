@@ -26,7 +26,7 @@ config = build <$> uri <*> keywords
     build u ks = Config {rssUri = u, keyWord = ks}
 
 word :: Parser String
-word = many1 $ noneOf ",\n"
+word = many1 $ noneOf ", \t\r\n"
 
 symbol :: Parser a -> Parser a
 symbol p = spaces *> p <* spaces
@@ -41,5 +41,5 @@ uri :: Parser String
 uri = line "rssuri" word
 
 keywords :: Parser [String]
-keywords = line "keywords" $ sepBy1 (symbol word) $ char ','
+keywords = line "keywords" $ sepBy (symbol word) $ char ','
 
