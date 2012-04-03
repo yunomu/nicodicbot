@@ -4,20 +4,18 @@ import Text.XML.HaXml.Posn
 import Text.XML.HaXml.Util
 import Codec.Binary.UTF8.String (encodeString, decodeString)
 import Network.Curl hiding (Content)
-{- test stub
-curlGetString :: String -> [a] -> IO (a, String)
-curlGetString path _ = do
-    str <- readFile "test/new.rss"
-    return (200, str)
----}
 
 import Config
 
-data Entry = Entry { title :: String }
-  deriving (Show)
+data Entry = Entry {
+    title :: String,
+    link :: String}
+
+instance Show Entry where
+    show e = "{title = \"" ++ title e ++ "\", link = " ++ link e ++ "}"
 
 entries :: String -> [Entry]
-entries = map entry . (deep $ tag "title") . rootContent
+entries = map entry . (deep $ tag "item") . rootContent
   where
     rootContent :: String -> Content Posn
     rootContent str = cont
@@ -26,11 +24,16 @@ entries = map entry . (deep $ tag "title") . rootContent
         cont = CElem rootElement noPos
 
     entry :: Content Posn -> Entry
-    entry t = Entry {title = tagTextContent t}
+    entry item = Entry {
+        title = tagText "title" item,
+        link = tagText "link" item}
+
+    tagText :: String -> Content Posn -> String
+    tagText t = tagTextContent . head . (deep $ tag t)
 
 main :: IO ()
 main = do
     config <- loadConfig "nicodicbot.config"
     (code, rss) <- curlGetString (rssUri config) []
-    mapM_ (putStrLn . title) $ entries $ decodeString rss
+    mapM_ (putStrLn . show) $ entries $ decodeString rss
 
