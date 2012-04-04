@@ -34,6 +34,6 @@ entries = map entry . (deep $ tag "item") . rootContent
 main :: IO ()
 main = do
     config <- loadConfig "nicodicbot.config"
-    (code, rss) <- curlGetString (rssUri config) []
+    (CurlOK, rss) <- curlGetString (rssUri config) []
     mapM_ (putStrLn . show) $ entries $ decodeString rss
 
