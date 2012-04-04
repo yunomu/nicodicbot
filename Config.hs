@@ -11,13 +11,13 @@ import System.IO.Error hiding (try)
 data Config = Config {
     rssUri :: String,
     keyWord :: [String]
-  } | Error deriving (Show)
+  } deriving (Show)
 
 loadConfig :: String -> IO Config
 loadConfig path = do
     str <- readFile path
     case parse config "" str of
-      Left err   -> do print err; return Config.Error
+      Left err   -> do print err; ioError $ userError "config parse error"
       Right cfg  -> return cfg
 
 config :: Parser Config
