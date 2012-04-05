@@ -1,12 +1,8 @@
-import System.IO
+module RssParser where
+
 import Text.XML.HaXml
 import Text.XML.HaXml.Posn
 import Text.XML.HaXml.Util
-import Codec.Binary.UTF8.String (encodeString, decodeString)
-import Network.Curl hiding (Content)
-
-import Config
-import ArticleParser
 
 data Entry = Entry {
     title :: String,
@@ -31,19 +27,4 @@ entries = map entry . (deep $ tag "item") . rootContent
 
     tagText :: String -> Content Posn -> String
     tagText t = tagTextContent . head . (deep $ tag t)
-
-article :: Entry -> IO (Maybe Article)
-article entry = do
-    (CurlOK, content) <- curlGetString (link entry) []
-    case getArticle (title entry) (decodeString content) of
---      Left msg -> ioError $ userError $ (title entry) ++ ": " ++ msg
-      Left mst -> return Nothing
-      Right a  -> return $ Just a
-
-main :: IO ()
-main = do
-    config <- loadConfig "nicodicbot.config"
-    (CurlOK, rss) <- curlGetString (rssUri config) []
-    articles <- mapM article $ entries $ decodeString rss
-    mapM_ (putStrLn . show) articles
 
