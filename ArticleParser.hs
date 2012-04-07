@@ -1,4 +1,4 @@
-module ArticleParser (Article, getArticle) where
+module ArticleParser (Article(..), getArticle, strContain) where
 
 import Text.HTML.TagSoup
 import Text.HTML.TagSoup.Tree
@@ -16,7 +16,7 @@ instance Show Article where
       ++ ", title = " ++ title a
       ++ ", link = " ++ link a
       ++ ", date = \"" ++ date a
-      ++ ", body = \"" ++ body a ++ "\"}"
+      ++ ", body = \"" ++ take 20 (body a) ++ "...\"}"
 
 getArticle :: String -> String -> Either String Article
 getArticle atitle content = do
@@ -98,16 +98,28 @@ search tag attrid trees = search' trees
       | otherwise                = search' (children ++ ts)
     search' (_:ts) = search' ts
 
-    matchAttrId :: StringLike str => [Attribute str] -> String -> Bool
+    matchAttrId :: StringLike str =>
+        [Attribute str] -> String -> Bool
     matchAttrId [] _ = False
     matchAttrId ((n,v):as) aid
-      | toString n == "id" && toString v == aid = True
-      | otherwise = matchAttrId as aid
+      | toString n == "id"
+       && toString v == aid = True
+      | otherwise           = matchAttrId as aid
 
-{-
-main :: IO ()
-main = do
-    str <- readFile "test/ume.html"
-    print $ getArticle "ume" str
----}
+strContain :: [String] -> Article -> Bool
+strContain keys article = strContain' (body article) keys keys
+  where
+    strContain' :: String -> [String] -> [String] -> Bool
+    strContain' ""     _      _       = False
+    strContain' (_:ss) []     defkeys = strContain' ss defkeys defkeys
+    strContain' text   (k:ks) defkeys
+      | k == []                       = error "keyword empty"
+      | cmp text k                    = True
+      | otherwise                     = strContain' text ks defkeys
+
+    cmp :: String -> String -> Bool
+    cmp _ [] = True
+    cmp (s:ss) (k:ks)
+      | s == k    = cmp ss ks
+      | otherwise = False
 
