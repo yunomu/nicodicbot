@@ -113,9 +113,7 @@ strContain keys article = strContain' (body article) keys keys
     strContain' ""     _      _       = False
     strContain' (_:ss) []     defkeys = strContain' ss defkeys defkeys
     strContain' text   (k:ks) defkeys
-      | k == []                       = error "keyword empty"
-      | cmp text k                    = True
-      | otherwise                     = strContain' text ks defkeys
+      = k /= "" && (cmp text k || strContain' text ks defkeys)
 
     cmp :: String -> String -> Bool
     cmp _ [] = True
