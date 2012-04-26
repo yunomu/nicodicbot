@@ -16,7 +16,7 @@ instance Show Article where
       ++ ", title = " ++ title a
       ++ ", link = " ++ link a
       ++ ", date = \"" ++ date a
-      ++ ", body = \"" ++ take 20 (body a) ++ "...\"}"
+      ++ "\", body = \"" ++ take 20 (body a) ++ "...\"}"
 
 getArticle :: String -> String -> Either String Article
 getArticle atitle content = do
@@ -73,9 +73,13 @@ getDate ts = getTagText "span" (tos f) ts
   where
     f n v = n == "style" && v == "color:red;"
 
+getArticleTree :: (StringLike str, Show str) =>
+    [Tag str] -> [TagTree str]
+getArticleTree = search "div" "article" . tagTree
+
 getBody :: (StringLike str, Show str) =>
     [Tag str] -> Either String String
-getBody tags = Right $ plane $ search "div" "article" $ tagTree tags
+getBody tags = Right $ plane $ getArticleTree tags
 
 plane :: (StringLike str) => [TagTree str] -> String
 plane tree = plane' "" $ flattenTree tree
@@ -120,4 +124,8 @@ strContain keys article = strContain' (body article) keys keys
     cmp (s:ss) (k:ks)
       | s == k    = cmp ss ks
       | otherwise = False
+
+main = do
+    str <- readFile "test/ume.html"
+    print $ getArticleTree $ parseTags str
 

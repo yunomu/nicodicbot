@@ -1,0 +1,37 @@
+Name:                nicodicbot
+Version:             0.1
+Synopsis:            nicopedia bot for twitter
+-- Description:         
+Homepage:            https://github.com/yunomu/nicodicbot
+License:             BSD3
+License-file:        LICENSE
+Author:              Yusuke Nomura <yunomu@gmail.com>
+Maintainer:          Yusuke Nomura <yunomu@gmail.com>
+-- Copyright:           
+Category:            Web
+Build-type:          Simple
+-- Extra-source-files:  
+Cabal-version:       >=1.2
+Data-Files:          nicodicbot.config.sample
+
+Executable nicodicbot
+  Main-is:           Nicodicbot.hs
+  Build-depends:     base,
+                     tagsoup,
+                     HaXml,
+                     csv,
+                     parsec3,
+                     curl,
+                     utf8-string
+  
+  Other-modules:     Config
+                     ArticleParser
+                     RssParser
+  
+  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
+  -- Build-tools:         
+
+Source-Repository head
+  Type:              git
+  Location:          git://github.com/yunomu/nicodicbot.git
+  

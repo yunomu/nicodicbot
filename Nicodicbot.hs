@@ -1,4 +1,4 @@
-module Nicodicbot where
+module Main where
 
 import System.IO
 import Codec.Binary.UTF8.String (encodeString, decodeString)
