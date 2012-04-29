@@ -16,6 +16,7 @@ Data-Files:          nicodicbot.config.sample
 
 Executable nicodicbot
   Main-is:           Nicodicbot.hs
+  GHC-Options:       -threaded
   Build-depends:     base,
                      tagsoup,
                      HaXml,
@@ -24,7 +25,8 @@ Executable nicodicbot
                      curl,
                      utf8-string,
                      attoparsec,
-                     text
+                     text,
+                     monad-parallel
   
   Other-modules:     Config
                      ArticleParser
