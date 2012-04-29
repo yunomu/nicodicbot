@@ -25,5 +25,6 @@ main = do
     articles <- mapM article $ es
     let as = catMaybes articles
     let keys = keyWord config
-    mapM_ print $ filter (strContain keys) as
+--    mapM_ print $ filter (strContain keys) as
+    mapM_ print as
 

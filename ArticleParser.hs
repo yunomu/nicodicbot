@@ -3,6 +3,9 @@ module ArticleParser (Article(..), getArticle, strContain) where
 import Text.HTML.TagSoup
 import Text.HTML.TagSoup.Tree
 import Text.StringLike (StringLike, toString, fromString)
+import Text.Parsec
+import Text.Parsec.String
+import Control.Applicative hiding ((<|>))
 
 data Article = Article {
     articleId :: String,
@@ -20,9 +23,9 @@ instance Show Article where
 
 getArticle :: String -> String -> Either String Article
 getArticle atitle content = do
-    aid <- getId tags
     adate <- getDate tags
     abody <- getBody tags
+    aid <- getId abody
     return Article {
       articleId = aid,
       title = atitle,
@@ -63,10 +66,16 @@ tos :: StringLike str =>
     (String -> String -> Bool) -> Attribute str -> Bool
 tos f (n,v) = f (toString n) (toString v)
 
-getId :: StringLike str => [Tag str] -> Either String String
-getId ts = getTagText "a" (tos f) ts
+getId :: String -> Either String String
+getId article = case parse artId "" article of
+    Left err -> Left $ show err
+    Right s  -> Right s
   where
-    f n v = n == "href" && take 4 v == "/id/"
+    artId :: Parser String
+    artId = try artId' <|> anyChar *> artId
+
+    artId' :: Parser String
+    artId' = string "ページ番号: " *> many1 digit
 
 getDate :: StringLike str => [Tag str] -> Either String String
 getDate ts = getTagText "span" (tos f) ts
@@ -127,5 +136,6 @@ strContain keys article = strContain' (body article) keys keys
 
 main = do
     str <- readFile "test/ume.html"
-    print $ getArticleTree $ parseTags str
+    let e = getId $ plane $ getArticleTree $ parseTags str
+    either putStrLn putStrLn e
 
