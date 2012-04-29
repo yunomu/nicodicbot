@@ -8,18 +8,18 @@ import Data.Text (Text, pack)
 import Control.Applicative
 
 data Article = Article {
-    articleId :: String,
-    title :: String,
-    link :: String,
-    date :: String,
-    body :: String}
+    a_id :: String,
+    a_title :: String,
+    a_link :: String,
+    a_date :: String,
+    a_body :: String}
 
 instance Show Article where
-    show a = "A {id = " ++ articleId a
-      ++ ", title = " ++ title a
-      ++ ", link = " ++ link a
-      ++ ", date = \"" ++ date a
-      ++ "\", body = \"" ++ Prelude.take 20 (body a) ++ "...\"}"
+    show a = "A {id = " ++ a_id a
+      ++ ", title = " ++ a_title a
+      ++ ", link = " ++ a_link a
+      ++ ", date = \"" ++ a_date a
+      ++ "\", body = \"" ++ Prelude.take 20 (a_body a) ++ "...\"}"
 
 getArticle :: String -> String -> Either String Article
 getArticle atitle content = do
@@ -27,11 +27,11 @@ getArticle atitle content = do
     abody <- getBody tags
     aid <- getId abody
     return Article {
-      articleId = aid,
-      title = atitle,
-      link = "http://dic.nicovideo.jp/id/" ++ aid,
-      date = adate,
-      body = abody}
+      a_id = aid,
+      a_title = atitle,
+      a_link = "http://dic.nicovideo.jp/id/" ++ aid,
+      a_date = adate,
+      a_body = abody}
   where
     tags = parseTags content
 
@@ -122,7 +122,7 @@ search tag attrid trees = search' trees
 
 strContain :: [String] -> Article -> Bool
 strContain keys article =
-  case parse (contain keys) (pack $ body article) of
+  case parse (contain keys) (pack $ a_body article) of
     Fail _ _ _ -> False
     Partial _  -> False
     Done _ _   -> True

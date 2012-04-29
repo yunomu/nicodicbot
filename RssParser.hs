@@ -5,11 +5,12 @@ import Text.XML.HaXml.Posn
 import Text.XML.HaXml.Util
 
 data Entry = Entry {
-    title :: String,
-    link :: String}
+    rss_title :: String,
+    rss_link :: String}
 
 instance Show Entry where
-    show e = "{title = \"" ++ title e ++ "\", link = " ++ link e ++ "}"
+    show e = "{title = \"" ++ rss_title e ++
+             "\", link = " ++ rss_link e ++ "}"
 
 entries :: String -> [Entry]
 entries = map entry . (deep $ tag "item") . rootContent
@@ -22,8 +23,8 @@ entries = map entry . (deep $ tag "item") . rootContent
 
     entry :: Content Posn -> Entry
     entry item = Entry {
-        title = tagText "title" item,
-        link = tagText "link" item}
+        rss_title = tagText "title" item,
+        rss_link = tagText "link" item}
 
     tagText :: String -> Content Posn -> String
     tagText t = tagTextContent . head . (deep $ tag t)

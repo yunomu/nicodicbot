@@ -11,9 +11,8 @@ import ArticleParser
 
 article :: Entry -> IO (Maybe Article)
 article entry = do
-    (CurlOK, content) <- curlGetString (RssParser.link entry) []
-    case getArticle (RssParser.title entry) (decodeString content) of
---      Left msg -> ioError $ userError $ (title entry) ++ ": " ++ msg
+    (CurlOK, content) <- curlGetString (rss_link entry) []
+    case getArticle (rss_title entry) (decodeString content) of
       Left msg -> return Nothing
       Right a  -> return $ Just a
 
