@@ -22,7 +22,9 @@ Executable nicodicbot
                      csv,
                      parsec3,
                      curl,
-                     utf8-string
+                     utf8-string,
+                     attoparsec,
+                     text
   
   Other-modules:     Config
                      ArticleParser

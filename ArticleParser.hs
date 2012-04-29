@@ -3,9 +3,9 @@ module ArticleParser (Article(..), getArticle, strContain) where
 import Text.HTML.TagSoup
 import Text.HTML.TagSoup.Tree
 import Text.StringLike (StringLike, toString, fromString)
-import Text.Parsec
-import Text.Parsec.String
-import Control.Applicative hiding ((<|>))
+import Data.Attoparsec.Text
+import Data.Text (Text, pack)
+import Control.Applicative
 
 data Article = Article {
     articleId :: String,
@@ -19,7 +19,7 @@ instance Show Article where
       ++ ", title = " ++ title a
       ++ ", link = " ++ link a
       ++ ", date = \"" ++ date a
-      ++ "\", body = \"" ++ take 20 (body a) ++ "...\"}"
+      ++ "\", body = \"" ++ Prelude.take 20 (body a) ++ "...\"}"
 
 getArticle :: String -> String -> Either String Article
 getArticle atitle content = do
@@ -67,15 +67,16 @@ tos :: StringLike str =>
 tos f (n,v) = f (toString n) (toString v)
 
 getId :: String -> Either String String
-getId article = case parse artId "" article of
-    Left err -> Left $ show err
-    Right s  -> Right s
+getId article = case parse (inFix artId) (pack article) of
+    Fail _ _ msg -> Left msg
+    Partial _    -> Left "error"
+    Done _ r     -> Right r
   where
     artId :: Parser String
-    artId = try artId' <|> anyChar *> artId
+    artId = string (pack "ページ番号: ") *> many1 digit
 
-    artId' :: Parser String
-    artId' = string "ページ番号: " *> many1 digit
+inFix :: Parser a -> Parser a
+inFix p = try p <|> (anyChar *> inFix p)
 
 getDate :: StringLike str => [Tag str] -> Either String String
 getDate ts = getTagText "span" (tos f) ts
@@ -120,22 +121,12 @@ search tag attrid trees = search' trees
       | otherwise           = matchAttrId as aid
 
 strContain :: [String] -> Article -> Bool
-strContain keys article = strContain' (body article) keys keys
+strContain keys article =
+  case parse (contain keys) (pack $ body article) of
+    Fail _ _ _ -> False
+    Partial _  -> False
+    Done _ _   -> True
   where
-    strContain' :: String -> [String] -> [String] -> Bool
-    strContain' ""     _      _       = False
-    strContain' (_:ss) []     defkeys = strContain' ss defkeys defkeys
-    strContain' text   (k:ks) defkeys
-      = k /= "" && (cmp text k || strContain' text ks defkeys)
-
-    cmp :: String -> String -> Bool
-    cmp _ [] = True
-    cmp (s:ss) (k:ks)
-      | s == k    = cmp ss ks
-      | otherwise = False
-
-main = do
-    str <- readFile "test/ume.html"
-    let e = getId $ plane $ getArticleTree $ parseTags str
-    either putStrLn putStrLn e
+    contain :: [String] -> Parser Text
+    contain ks = inFix $ choice $ string <$> map pack keys
 
