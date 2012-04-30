@@ -5,7 +5,7 @@ import Control.Monad
 import Text.Parsec
 import Text.Parsec.String
 import Text.CSV
-import System.IO
+import qualified System.IO.UTF8 as UTF8
 import System.IO.Error hiding (try)
 
 data Config = Config {
@@ -21,7 +21,7 @@ type Conf = (String, [String])
 
 loadConfig :: String -> IO Config
 loadConfig path = do
-    str <- readFile path
+    str <- UTF8.readFile path
     case parse config "" str of
       Left err   -> fail $ show err
       Right conf -> return $ makeConfig conf

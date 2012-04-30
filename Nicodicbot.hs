@@ -26,6 +26,7 @@ curlOK _      def _ = def
 
 main :: IO ()
 main = do
+    hSetEncoding stdout utf8
     config <- loadConfig "nicodicbot.config"
     (code, rss) <- curlGetString (cfg_rssuri config) []
     curlOK code (fail "Couldn't get rss") $ return ()
