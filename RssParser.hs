@@ -1,4 +1,4 @@
-module RssParser(Entry(..), entries) where
+module RssParser (Entry(..), entries) where
 
 import Text.XML.HaXml
 import Text.XML.HaXml.Posn

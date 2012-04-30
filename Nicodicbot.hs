@@ -9,7 +9,7 @@ import qualified Control.Monad.Parallel as P
 
 import Config
 import RssParser
-import ArticleParser
+import Article
 
 article :: Entry -> IO (Maybe Article)
 article entry = do
@@ -28,11 +28,12 @@ main :: IO ()
 main = do
     config <- loadConfig "nicodicbot.config"
     (code, rss) <- curlGetString (cfg_rssuri config) []
-    curlOK code (fail "cannot get rss") $ return ()
+    curlOK code (fail "Couldn't get rss") $ return ()
     let es = entries $ decodeString rss
     let keys = cfg_keywords config
     articles <- P.mapM (f keys) es
-    mapM_ print $ catMaybes articles
+--    mapM_ print $ catMaybes articles
+    mapM_ (putStrLn . dump) $ catMaybes articles
   where
     f :: [String] -> Entry -> IO (Maybe Article)
     f keys entry = do

@@ -31,7 +31,7 @@ Executable nicodicbot
                      time
  
   Other-modules:     Config
-                     ArticleParser
+                     Article
                      RssParser
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.

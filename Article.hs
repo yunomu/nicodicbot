@@ -1,4 +1,4 @@
-module ArticleParser (Article(..), getArticle, strContain) where
+module Article (Article(..), getArticle, strContain, dump) where
 
 import Text.HTML.TagSoup
 import Text.HTML.TagSoup.Tree
@@ -20,8 +20,14 @@ instance Show Article where
     show a = "A {id = " ++ a_id a
       ++ ", title = " ++ a_title a
       ++ ", link = " ++ a_link a
-      ++ ", date = \"" ++ show (a_date a)
+      ++ ", date = \"" ++ maybe "" show (a_date a)
       ++ "\", body = \"" ++ Prelude.take 20 (a_body a) ++ "...\"}"
+
+dump :: Article -> String
+dump a = join [a_title a, a_link a, maybe "" show $ a_date a]
+  where
+    join [f]    = f
+    join (f:fs) = f ++ "," ++ join fs
 
 getArticle :: String -> Either String Article
 getArticle content = do
