@@ -23,11 +23,11 @@ article entry = do
 main :: IO ()
 main = do
     config <- loadConfig "nicodicbot.config"
-    (CurlOK, rss) <- curlGetString (rssUri config) []
+    (CurlOK, rss) <- curlGetString (cfg_rssuri config) []
     let es = entries $ decodeString rss
     articles <- P.mapM article $ es
     let as = catMaybes articles
-    let keys = keyWord config
+    let keys = cfg_keyword config
     P.mapM print $ filter (strContain keys) as
     return ()
 

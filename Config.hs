@@ -1,4 +1,4 @@
-module Config (Config, rssUri, keyWord, loadConfig) where
+module Config (Config(..), loadConfig) where
 
 import Control.Applicative hiding ((<|>), many, optional)
 import Control.Monad
@@ -9,8 +9,8 @@ import System.IO
 import System.IO.Error hiding (try)
 
 data Config = Config {
-    rssUri :: String,
-    keyWord :: [String]
+    cfg_rssuri :: String,
+    cfg_keyword :: [String]
   } deriving (Show)
 
 loadConfig :: String -> IO Config
@@ -23,7 +23,7 @@ loadConfig path = do
 config :: Parser Config
 config = build <$> uri <*> keywords
   where
-    build u ks = Config {rssUri = u, keyWord = ks}
+    build u ks = Config {cfg_rssuri = u, cfg_keyword = ks}
 
 word :: Parser String
 word = many1 $ noneOf ", \t\r\n"
