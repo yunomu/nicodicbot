@@ -1,16 +1,17 @@
 # -*- encoding: UTF-8 -*-
 
-CACHE_FILE = "ndcache.txt"
-
 require 'time'
 
 require 'rubygems'
 require 'oauth'
 
+PATH = File.dirname(__FILE__)
+CACHE_FILE = PATH + "/ndcache.txt"
+
 KEYS = ["consumer_key", "consumer_secret", "access_token", "access_token_secret"]
 
 token = {}
-IO.readlines("nicodicbot.config").each {|l|
+IO.readlines("#{PATH}/nicodicbot.config").each {|l|
   ls = l.chomp.split(/\s*:\s*/,2)
   next if ls.size != 2
   next unless KEYS.include? ls[0]
@@ -21,7 +22,7 @@ def parseline(l)
   t = l.chomp.split ","
   {:title => t[0], :link => t[1], :timestamp => Time.parse(t[2])}
 end
-newwords = `./nicodicbot`.lines.map {|l| parseline(l) }
+newwords = `#{PATH}/nicodicbot`.lines.map {|l| parseline(l) }
 
 # 前回取得した単語リストを読み込む
 prevwords = IO.readlines(CACHE_FILE).map {|l| parseline(l) }
