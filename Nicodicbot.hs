@@ -30,7 +30,7 @@ main = do
     (code, rss) <- curlGetString (cfg_rssuri config) []
     curlOK code (fail "cannot get rss") $ return ()
     let es = entries $ decodeString rss
-    let keys = cfg_keyword config
+    let keys = cfg_keywords config
     articles <- P.mapM (f keys) es
     mapM_ print $ catMaybes articles
   where

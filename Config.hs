@@ -10,36 +10,73 @@ import System.IO.Error hiding (try)
 
 data Config = Config {
     cfg_rssuri :: String,
-    cfg_keyword :: [String]
+    cfg_keywords :: [String],
+    cfg_consumer_key :: String,
+    cfg_consumer_secret :: String,
+    cfg_access_token :: String,
+    cfg_access_token_secret :: String
   } deriving (Show)
+
+type Conf = (String, [String])
 
 loadConfig :: String -> IO Config
 loadConfig path = do
     str <- readFile path
     case parse config "" str of
-      Left err   -> do print err; ioError $ userError "config parse error"
-      Right cfg  -> return cfg
+      Left err   -> fail $ show err
+      Right conf -> return $ makeConfig conf
 
-config :: Parser Config
-config = build <$> uri <*> keywords
+config :: Parser [Conf]
+config = commentLines *> many cfield <* eof
   where
-    build u ks = Config {cfg_rssuri = u, cfg_keyword = ks}
+    cfield = field <* commentLines
 
-word :: Parser String
-word = many1 $ noneOf ", \t\r\n"
-
-symbol :: Parser a -> Parser a
-symbol p = spaces *> p <* spaces
+makeConfig :: [Conf] -> Config
+makeConfig conf = Config {
+    cfg_rssuri = head $ get "rssuri" "",
+    cfg_keywords = get "keywords" "",
+    cfg_consumer_key = head $ get "consumer_key" "",
+    cfg_consumer_secret = head $ get "consumer_secret" "",
+    cfg_access_token = head $ get "access_token" "",
+    cfg_access_token_secret = head $ get "access_token_secret" ""
+  }
   where
-    spaces = many space
+    get :: String -> String -> [String]
+    get k def = maybe [] id $ lookup k conf
 
-line :: String -> Parser a -> Parser a
-line label p = string label *> symbol (char ':') *> p
-    <* (optional newline <|> eof)
+comment :: Parser ()
+comment = () <$ char '#' <* many (noneOf "\n")
 
-uri :: Parser String
-uri = line "rssuri" word
+commentLine :: Parser ()
+commentLine = () <$ (comment *> newline <|> newline)
 
-keywords :: Parser [String]
-keywords = line "keywords" $ sepBy (symbol word) $ char ','
+commentLines :: Parser ()
+commentLines = () <$ many commentLine
+
+sep :: Parser ()
+sep = () <$ char ':' *> spcs
+
+spcs :: Parser ()
+spcs = () <$ many spc
+
+spc :: Parser Char
+spc = satisfy (`elem` " \t")
+
+field :: Parser (String,[String])
+field = (,) <$> key <*> (sep *> value) <* commentLine
+
+key :: Parser String
+key = many1 (oneOf $ ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ "_") <* spcs
+
+value :: Parser [String]
+value = cv_strings <* spcs
+
+cv_string :: Parser String
+cv_string = many1 (noneOf ", \t\r\n") <* spcs
+
+cv_strings :: Parser [String]
+cv_strings = cv_list cv_string
+
+cv_list :: Parser a -> Parser [a]
+cv_list p = sepBy p $ char ',' <* spcs
 
