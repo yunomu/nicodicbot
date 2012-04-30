@@ -26,8 +26,10 @@ Executable nicodicbot
                      utf8-string,
                      attoparsec,
                      text,
-                     monad-parallel
-  
+                     monad-parallel,
+                     old-locale,
+                     time
+ 
   Other-modules:     Config
                      ArticleParser
                      RssParser

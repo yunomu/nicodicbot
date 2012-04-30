@@ -6,29 +6,31 @@ import Text.StringLike (StringLike, toString, fromString)
 import Data.Attoparsec.Text
 import Data.Text (Text, pack)
 import Control.Applicative
+import Data.Time
+import System.Locale
 
 data Article = Article {
     a_id :: String,
     a_title :: String,
     a_link :: String,
-    a_date :: String,
+    a_date :: Maybe ZonedTime,
     a_body :: String}
 
 instance Show Article where
     show a = "A {id = " ++ a_id a
       ++ ", title = " ++ a_title a
       ++ ", link = " ++ a_link a
-      ++ ", date = \"" ++ a_date a
+      ++ ", date = \"" ++ show (a_date a)
       ++ "\", body = \"" ++ Prelude.take 20 (a_body a) ++ "...\"}"
 
-getArticle :: String -> String -> Either String Article
-getArticle atitle content = do
-    adate <- getDate tags
+getArticle :: String -> Either String Article
+getArticle content = do
+    adate <- Right Nothing
     abody <- getBody tags
     aid <- getId abody
     return Article {
       a_id = aid,
-      a_title = atitle,
+      a_title = "",
       a_link = "http://dic.nicovideo.jp/id/" ++ aid,
       a_date = adate,
       a_body = abody}
@@ -78,11 +80,6 @@ getId article = case parse (inFix artId) (pack article) of
 inFix :: Parser a -> Parser a
 inFix p = try p <|> (anyChar *> inFix p)
 
-getDate :: StringLike str => [Tag str] -> Either String String
-getDate ts = getTagText "span" (tos f) ts
-  where
-    f n v = n == "style" && v == "color:red;"
-
 getArticleTree :: (StringLike str, Show str) =>
     [Tag str] -> [TagTree str]
 getArticleTree = search "div" "article" . tagTree
@@ -109,7 +106,7 @@ search tag attrid trees = search' trees
     search' ((TagBranch tagname as children):ts)
       | toString tagname == tag
         && matchAttrId as attrid = children
-      | otherwise                = search' (children ++ ts)
+      | otherwise                = search' $ children ++ ts
     search' (_:ts) = search' ts
 
     matchAttrId :: StringLike str =>
@@ -123,9 +120,9 @@ search tag attrid trees = search' trees
 strContain :: [String] -> Article -> Bool
 strContain keys article =
   case parse (contain keys) (pack $ a_body article) of
+    Done _ _   -> True
     Fail _ _ _ -> False
     Partial _  -> False
-    Done _ _   -> True
   where
     contain :: [String] -> Parser Text
     contain ks = inFix $ choice $ string <$> map pack keys
