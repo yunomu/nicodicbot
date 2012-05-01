@@ -41,15 +41,15 @@ open(CACHE_FILE, "w") { |file|
 
 # Twitterに投稿
 consumer = OAuth::Consumer.new(
-     token[:consumer_key],
-     token[:consumer_secret],
-     :site => 'http://twitter.com/'
+     token["consumer_key"],
+     token["consumer_secret"],
+     :site => 'https://api.twitter.com'
 )
 
 access_token = OAuth::AccessToken.new(
      consumer,
-     token[:access_token],
-     token[:access_token_secret]
+     token["access_token"],
+     token["access_token_secret"]
 )
 
 src.each do |item|
