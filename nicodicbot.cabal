@@ -15,8 +15,9 @@ Cabal-version:       >=1.2
 Data-Files:          nicodicbot.config.sample
 
 Executable nicodicbot
+  Hs-Source-Dirs:    src
   Main-is:           Nicodicbot.hs
-  GHC-Options:       -threaded
+  GHC-Options:       -threaded -Wall
   Build-depends:     base,
                      tagsoup,
                      HaXml,

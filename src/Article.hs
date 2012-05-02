@@ -2,12 +2,11 @@ module Article (Article(..), getArticle, strContain, dump) where
 
 import Text.HTML.TagSoup
 import Text.HTML.TagSoup.Tree
-import Text.StringLike (StringLike, toString, fromString)
+import Text.StringLike (StringLike, toString)
 import Data.Attoparsec.Text
 import Data.Text (Text, pack)
 import Control.Applicative
 import Data.Time
-import System.Locale
 
 data Article = Article {
     a_id :: String,
@@ -26,6 +25,7 @@ instance Show Article where
 dump :: Article -> String
 dump a = join [a_title a, a_link a, maybe "" show $ a_date a]
   where
+    join []     = error "dump error"
     join [f]    = f
     join (f:fs) = f ++ "," ++ join fs
 
@@ -42,37 +42,6 @@ getArticle content = do
       a_body = abody}
   where
     tags = parseTags content
-
-isTag :: StringLike str =>
-    Tag str -> String -> ([Attribute str] -> Bool) -> Bool
-isTag (TagOpen tag attrs) str f
-  | (toString tag) == str = f attrs
-  | otherwise             = False
-isTag _ _ _               = False
-
-isAttr :: StringLike str =>
-    (Attribute str -> Bool) -> [Attribute str] -> Bool
-isAttr _ []   = False
-isAttr f ((n,v):as)
-  | f (n, v)  = True
-  | otherwise = False
-
-text :: StringLike str => [Tag str] -> String
-text ((TagText str):ts) = toString str
-
-getTagText :: StringLike str =>
-    String -> (Attribute str -> Bool) -> [Tag str]
-      -> Either String String
-getTagText tag _ []     = Left $ "tag not found: " ++ tag
-getTagText tag f (t:ts) =
-    if isTag t tag (isAttr f) then
-      Right $ text ts
-     else
-      getTagText tag f ts
-
-tos :: StringLike str =>
-    (String -> String -> Bool) -> Attribute str -> Bool
-tos f (n,v) = f (toString n) (toString v)
 
 getId :: String -> Either String String
 getId article = case parse (inFix artId) (pack article) of
@@ -131,5 +100,5 @@ strContain keys article =
     Partial _  -> False
   where
     contain :: [String] -> Parser Text
-    contain ks = inFix $ choice $ string <$> map pack keys
+    contain ks = inFix $ choice $ string <$> map pack ks
 
