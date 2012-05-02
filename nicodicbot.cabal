@@ -37,7 +37,8 @@ Executable nicodicbot
                      bytestring,
                      http-conduit,
                      conduit,
-                     transformers
+                     transformers,
+                     mongoDB
  
   Other-modules:     Config
                      Article
