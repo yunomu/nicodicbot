@@ -28,7 +28,11 @@ Executable nicodicbot
                      text,
                      monad-parallel,
                      old-locale,
-                     time
+                     time,
+                     authenticate-oauth,
+                     bytestring,
+                     http-conduit,
+                     conduit
  
   Other-modules:     Config
                      Article
