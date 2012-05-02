@@ -4,6 +4,7 @@ import Control.Applicative hiding ((<|>), many, optional)
 import Text.Parsec
 import Text.Parsec.String
 import qualified System.IO.UTF8 as UTF8
+import Data.Maybe
 
 data Config = Config {
     cfg_rssuri :: String,
@@ -39,7 +40,7 @@ makeConfig conf = Config {
   }
   where
     get :: String -> String -> [String]
-    get k _def = maybe [] id $ lookup k conf
+    get k _def = fromMaybe [] $ lookup k conf
 
 comment :: Parser ()
 comment = () <$ char '#' <* many (noneOf "\n")
