@@ -1,12 +1,9 @@
 module Config (Config(..), loadConfig) where
 
 import Control.Applicative hiding ((<|>), many, optional)
-import Control.Monad
 import Text.Parsec
 import Text.Parsec.String
-import Text.CSV
 import qualified System.IO.UTF8 as UTF8
-import System.IO.Error hiding (try)
 
 data Config = Config {
     cfg_rssuri :: String,
@@ -42,7 +39,7 @@ makeConfig conf = Config {
   }
   where
     get :: String -> String -> [String]
-    get k def = maybe [] id $ lookup k conf
+    get k _def = maybe [] id $ lookup k conf
 
 comment :: Parser ()
 comment = () <$ char '#' <* many (noneOf "\n")

@@ -1,10 +1,9 @@
 module Main where
 
 import System.IO
-import Codec.Binary.UTF8.String (encodeString, decodeString)
-import Network.Curl hiding (Content)
+import Codec.Binary.UTF8.String (decodeString)
+import Network.Curl
 import Data.Maybe
-import Data.Time
 import qualified Control.Monad.Parallel as P
 
 import Config
@@ -13,12 +12,12 @@ import Article
 
 article :: Entry -> IO (Maybe Article)
 article entry = do
-    (code, content) <- curlGetString (rss_link entry) []
-    return $ curlOK code Nothing $ either (\a -> Nothing) f $ art content
+    (code, contents) <- curlGetString (rss_link entry) []
+    return $ curlOK code Nothing $ either (\_ -> Nothing) f $ art contents
   where
     f a = Just a{a_title = rss_title entry,
                  a_date = rss_date entry}
-    art content = getArticle $ decodeString content
+    art contents = getArticle $ decodeString contents
 
 curlOK :: CurlCode -> a -> a -> a
 curlOK CurlOK _   a = a

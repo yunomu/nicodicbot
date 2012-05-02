@@ -4,7 +4,6 @@ import Text.XML.HaXml
 import Text.XML.HaXml.Posn
 import Text.XML.HaXml.Util
 import Data.Time
-import Data.Maybe
 import System.Locale
 
 data Entry = Entry {
