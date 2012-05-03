@@ -29,7 +29,10 @@ Executable nicodicbot
                      text,
                      monad-parallel,
                      old-locale,
-                     time
+                     time,
+                     network,
+                     containers,
+                     data-default
  
   Other-modules:     Config
                      Article
