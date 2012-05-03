@@ -1,6 +1,8 @@
 module Main where
 
 import System.IO
+import System.Environment
+import System.Exit
 import Codec.Binary.UTF8.String (decodeString)
 import Network.Curl
 import Data.Maybe
@@ -27,14 +29,13 @@ curlOK _      def _ = def
 main :: IO ()
 main = do
     hSetEncoding stdout utf8
-    config <- loadConfig "nicodicbot.config"
+    config <- getConfig
     let uri = cfg_rssuri config
     (code, contents) <- curlGetString uri []
     curlOK code (fail $ "Couldn't get rss: " ++ uri) $ return ()
     let rss = decodeString contents
     let keywords = cfg_keywords config
     articles <- fmap catMaybes $ P.mapM (f keywords) $ entries rss
---    mapM_ print articles
     mapM_ (putStrLn . dump) articles
   where
     f :: [String] -> (Entry -> IO (Maybe Article))
@@ -45,4 +46,14 @@ main = do
 
     toMaybe :: (a -> Bool) -> (a -> Maybe a)
     toMaybe g = \a -> if g a then Just a else Nothing
+
+    getConfig :: IO Config
+    getConfig = getArgs >>= eachCase
+    eachCase args
+      | n == 1    = loadConfig $ args !! 0
+      | otherwise = do
+          hPutStrLn stderr "Usage: nicodicbot config_file"
+          exitFailure
+      where
+        n = length args
 
