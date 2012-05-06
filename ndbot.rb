@@ -73,8 +73,8 @@ src.each do |item|
      message << item[:title]
      message << '』 '
      message << item[:link]
-#     response = access_token.post(
-#          'http://twitter.com/statuses/update.json',
-#          'status' => message
-#     )
+     response = access_token.post(
+          'http://twitter.com/statuses/update.json',
+          'status' => message
+     )
 end
