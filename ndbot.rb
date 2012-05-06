@@ -1,5 +1,16 @@
 # -*- encoding: UTF-8 -*-
 
+def error(*msg)
+  print "ERROR: ", msg.join, $/
+  exit -1
+end
+
+if ARGV.size == 0 then
+  error "config not found", $/, "Usage: ndbot.rb config"
+end
+
+config = ARGV.shift
+
 require 'time'
 
 require 'rubygems'
@@ -11,12 +22,16 @@ CACHE_FILE = PATH + "/ndcache.txt"
 KEYS = ["consumer_key", "consumer_secret", "access_token", "access_token_secret"]
 
 token = {}
-IO.readlines("#{PATH}/nicodicbot.config").each {|l|
+IO.readlines(config).each {|l|
   ls = l.chomp.split(/\s*:\s*/,2)
   next if ls.size != 2
   next unless KEYS.include? ls[0]
   token[ls[0]] = ls[1]
 }
+
+if !KEYS.reduce {|r, k| r = r && token.include?(k) } then
+  error "Do not have enough keys for OAuth. (#{KEYS * ", "})"
+end
 
 def parseline(l)
   t = l.chomp.split ","
@@ -58,8 +73,8 @@ src.each do |item|
      message << item[:title]
      message << '』 '
      message << item[:link]
-     response = access_token.post(
-          'http://twitter.com/statuses/update.json',
-          'status' => message
-     )
+#     response = access_token.post(
+#          'http://twitter.com/statuses/update.json',
+#          'status' => message
+#     )
 end
