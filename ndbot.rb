@@ -37,7 +37,7 @@ def parseline(l)
   t = l.chomp.split ","
   {:title => t[0], :link => t[1], :timestamp => Time.parse(t[2])}
 end
-newwords = `#{PATH}/nicodicbot`.lines.map {|l| parseline(l) }
+newwords = `#{PATH}/nicodicbot #{config}`.lines.map {|l| parseline(l) }
 
 # 前回取得した単語リストを読み込む
 prevwords = IO.readlines(CACHE_FILE).map {|l| parseline(l) }
