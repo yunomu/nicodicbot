@@ -68,17 +68,16 @@ plane tree = plane' "" $ flattenTree tree
   where
     plane' :: StringLike str => String -> [Tag str] -> String
     plane' r []                 = r
-    plane' r ((TagText str):ts) = plane' (r ++ toString str) ts
+    plane' r (TagText str:ts) = plane' (r ++ toString str) ts
     plane' r (_:ts)             = plane' r ts
 
 search :: (StringLike str) =>
     String -> String -> [TagTree str] -> [TagTree str]
-search tag attrid trees = search' trees
+search tag attrid = search'
   where
-    search' :: StringLike str =>
-        [TagTree str] -> [TagTree str]
+    search' :: StringLike str => [TagTree str] -> [TagTree str]
     search' [] = []
-    search' ((TagBranch tagname as children):ts)
+    search' (TagBranch tagname as children:ts)
       | toString tagname == tag
         && matchAttrId as attrid = children
       | otherwise                = search' $ children ++ ts
@@ -95,9 +94,9 @@ search tag attrid trees = search' trees
 strContain :: [String] -> Article -> Bool
 strContain keys article =
   case parse (contain keys) (pack $ a_body article) of
-    Done _ _   -> True
-    Fail _ _ _ -> False
-    Partial _  -> False
+    Done {}   -> True
+    Fail {}   -> False
+    Partial _ -> False
   where
     contain :: [String] -> Parser Text
     contain ks = inFix $ choice $ string <$> map pack ks

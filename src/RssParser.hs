@@ -17,7 +17,7 @@ instance Show Entry where
              ", date = " ++ show (rss_date e) ++ "}"
 
 entries :: String -> [Entry]
-entries = map entry . (deep $ tag "item") . rootContent
+entries = map entry . deep (tag "item") . rootContent
 
 rootContent :: String -> Content Posn
 rootContent str = cont
@@ -31,9 +31,9 @@ entry item = Entry {
     rss_link = tagText "link" item,
     rss_date = date $ tagText "dc:date" item}
   where
-    date str = parseTime defaultTimeLocale fmt str
+    date = parseTime defaultTimeLocale fmt
     fmt = "%FT%X%z"
 
 tagText :: String -> Content Posn -> String
-tagText t = tagTextContent . head . (deep $ tag t)
+tagText t = tagTextContent . head . deep (tag t)
 
