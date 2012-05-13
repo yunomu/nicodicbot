@@ -36,11 +36,13 @@ Executable nicodicbot
                      authenticate-oauth,
                      bytestring,
                      http-conduit,
-                     conduit
+                     conduit,
+                     transformers
  
   Other-modules:     Config
                      Article
                      RssParser
+                     Twitter
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:         
