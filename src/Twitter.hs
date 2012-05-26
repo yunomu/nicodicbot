@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Twitter where
+module Twitter (TwKeys, twKeys, post) where
 
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString
+import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as BC
 import Data.Conduit
 import qualified Data.Conduit.Binary as CB
 import Network.HTTP.Conduit
-import System.IO (stdout)
 import Web.Authenticate.OAuth
 
 data TwKeys = TK {
@@ -25,13 +25,13 @@ twKeys ck cs at ats = TK {
     access_token = BC.pack at,
     access_token_secret = BC.pack ats}
 
-post :: TwKeys -> ByteString -> IO ()
+post :: TwKeys -> ByteString -> IO L.ByteString
 post keys status = runResourceT $ do
     manager <- liftIO $ newManager def
-    tmp <- liftIO $ parseUrl "http://twitter.com/statuses/update.json"
-    request <- signOAuth oauth credential $ postMessage status tmp
+    req <- liftIO $ parseUrl "http://twitter.com/statuses/update.json"
+    request <- signOAuth oauth credential $ postMessage status req
     response <- http request manager
-    responseBody response $$ CB.sinkHandle stdout
+    responseBody response $$ CB.take 1024
   where
     credential = newCredential (access_token keys) (access_token_secret keys)
     site = "https://api.twitter.com"

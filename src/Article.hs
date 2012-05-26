@@ -95,6 +95,7 @@ search tag attrid = search'
       | otherwise           = matchAttrId as aid
 
 strContain :: [String] -> Article -> Bool
+strContain []   _       = True
 strContain keys article =
   case parse (contain keys) (pack $ a_body article) of
     Done {}   -> True
