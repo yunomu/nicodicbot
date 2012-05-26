@@ -56,5 +56,6 @@ a2doc a =
     , "title"      =: a_title a
     , "link"       =: a_link a
     , "date"       =: zonedTimeToUTC (fromJust $ a_date a)
+    , "posted"     =: False
     ]
 
