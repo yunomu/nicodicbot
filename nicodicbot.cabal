@@ -8,7 +8,7 @@ License-file:        LICENSE
 Author:              Yusuke Nomura <yunomu@gmail.com>
 Maintainer:          Yusuke Nomura <yunomu@gmail.com>
 -- Copyright:           
-Category:            Web
+Category:            Web, Twitter
 Build-type:          Simple
 -- Extra-source-files:  
 Cabal-version:       >=1.2
@@ -21,7 +21,6 @@ Executable nicodicbot
   Build-depends:     base,
                      tagsoup,
                      HaXml,
-                     csv,
                      parsec3,
                      curl,
                      utf8-string,
@@ -31,7 +30,6 @@ Executable nicodicbot
                      old-locale,
                      time,
                      network,
-                     containers,
                      data-default,
                      authenticate-oauth,
                      bytestring,
@@ -43,7 +41,15 @@ Executable nicodicbot
   Other-modules:     Config
                      Article
                      RssParser
+
+Executable ndpost
+  Hs-Source-Dirs:    src
+  Main-is:           NdPost.hs
+  GHC-Options:       -Wall
+
+  Other-Modules:     Config
                      Twitter
+                     Article
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:         

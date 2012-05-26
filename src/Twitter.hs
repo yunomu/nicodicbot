@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
-
-module Twitter (TwKeys, twKeys, post) where
+module Twitter
+    ( TwKeys
+    , twKeys
+    , post
+    ) where
 
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString
@@ -10,6 +13,8 @@ import Data.Conduit
 import qualified Data.Conduit.Binary as CB
 import Network.HTTP.Conduit
 import Web.Authenticate.OAuth
+
+import Article
 
 data TwKeys = TK {
     consumer_key :: ByteString,
@@ -25,8 +30,8 @@ twKeys ck cs at ats = TK {
     access_token = BC.pack at,
     access_token_secret = BC.pack ats}
 
-post :: TwKeys -> ByteString -> IO L.ByteString
-post keys status = runResourceT $ do
+post :: TwKeys -> Article -> IO L.ByteString
+post keys a = runResourceT $ do
     manager <- liftIO $ newManager def
     req <- liftIO $ parseUrl "http://twitter.com/statuses/update.json"
     request <- signOAuth oauth credential $ postMessage status req
@@ -41,6 +46,7 @@ post keys status = runResourceT $ do
         oauthAuthorizeUri = site ++ "/oauth/authorize",
         oauthConsumerKey = consumer_key keys,
         oauthConsumerSecret = consumer_secret keys}
+    status = BC.pack $ a_title a ++ " :: " ++ a_link a
 
     postMessage :: MonadUnsafeIO m => ByteString -> Request m -> Request m
     postMessage msg req = urlEncodedBody [("status", msg)] req

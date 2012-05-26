@@ -1,4 +1,9 @@
-module Article (Article(..), getArticle, strContain, dump, twit) where
+module Article
+    ( Article(..)
+    , getArticle
+    , strContain
+    , dump
+    ) where
 
 import Text.HTML.TagSoup
 import Text.HTML.TagSoup.Tree
@@ -28,9 +33,6 @@ dump a = join [a_title a, a_link a, maybe "" show $ a_date a]
     join []     = error "dump error"
     join [f]    = f
     join (f:fs) = f ++ "," ++ join fs
-
-twit :: Article -> String
-twit a = a_title a ++ " :: " ++ a_link a
 
 getArticle :: String -> Either String Article
 getArticle content = do

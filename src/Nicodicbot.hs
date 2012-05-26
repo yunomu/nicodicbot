@@ -39,7 +39,6 @@ main = do
     let keywords = cfg_keywords config
     articles <- fmap catMaybes $ P.mapM (f keywords) $ entries rss
     store S.def articles
-    mapM_ (putStrLn . dump) articles
   where
     f :: [String] -> (Entry -> IO (Maybe Article))
     f keys = \entry -> maybe
