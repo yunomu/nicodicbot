@@ -4,6 +4,7 @@ module Store
     , def
     , store
     , unpostedArticles
+    , posted
     ) where
 
 import Prelude hiding (lookup)
@@ -36,16 +37,17 @@ store dbConfig as = runResourceT . liftIO $ do
 
 insertArticle :: MonadIO' m => Article -> Action m ()
 insertArticle a = do
-    doc <- findOne $ select cond table
+    doc <- findOne $ select (cond a) table
     maybe
         (insert_ table $ a2doc a)
         (\_ -> return ())
         doc
-  where
-    cond =
-        [ "article_id" =: a_id a
-        , "date"       =: zonedTimeToUTC (fromJust $ a_date a)
-        ]
+
+cond :: Article -> Selector
+cond a =
+    [ "article_id" =: a_id a
+    , "date"       =: zonedTimeToUTC (fromJust $ a_date a)
+    ]
 
 unpostedArticles :: DBConfig -> IO [Article]
 unpostedArticles dbConfig = runResourceT . liftIO $ do
@@ -56,6 +58,15 @@ unpostedArticles dbConfig = runResourceT . liftIO $ do
   where
     findUnposted :: Action IO [Document]
     findUnposted = rest =<< find (select ["posted" =: False] table)
+
+posted :: DBConfig -> Article -> IO ()
+posted dbConfig article = runResourceT . liftIO $ do
+    pipe <- runIOE $ connect $ host $ dbHost dbConfig
+    e <- access pipe master (u $ dbName dbConfig) $ update article
+    return ()
+  where
+    update :: Article -> Action IO ()
+    update a = modify (Select {selector = cond a, coll = table}) ["posted" =: True]
 
 a2doc :: Article -> Document
 a2doc a =

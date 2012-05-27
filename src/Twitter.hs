@@ -13,6 +13,7 @@ import Data.Conduit
 import qualified Data.Conduit.Binary as CB
 import Network.HTTP.Conduit
 import Web.Authenticate.OAuth
+import Codec.Binary.UTF8.String (encodeString)
 
 import Article
 
@@ -46,7 +47,7 @@ post keys a = runResourceT $ do
         oauthAuthorizeUri = site ++ "/oauth/authorize",
         oauthConsumerKey = consumer_key keys,
         oauthConsumerSecret = consumer_secret keys}
-    status = BC.pack $ a_title a ++ " :: " ++ a_link a
+    status = BC.pack $ encodeString $ a_title a ++ " :: " ++ a_link a
 
     postMessage :: MonadUnsafeIO m => ByteString -> Request m -> Request m
     postMessage msg req = urlEncodedBody [("status", msg)] req
