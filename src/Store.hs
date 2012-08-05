@@ -9,10 +9,11 @@ module Store
 import Prelude hiding (lookup)
 import Database.MongoDB
 import Database.MongoDB.Internal.Util
-import Control.Monad.IO.Class
+import Control.Monad.IO.Class (liftIO)
 import Data.Default
 import Data.Conduit hiding (sequence)
 import Data.Maybe
+import Data.Text (pack)
 import Data.Time
 
 import Article
@@ -31,7 +32,7 @@ instance Default DBConfig where
 store :: DBConfig -> [Article] -> IO ()
 store dbConfig as = runResourceT . liftIO $ do
     pipe <- runIOE $ connect $ host $ dbHost dbConfig
-    e <- access pipe master (u $ dbName dbConfig) $ mapM_ insertArticle as
+    e <- access pipe master (pack $ dbName dbConfig) $ mapM_ insertArticle as
     result e
 
 insertArticle :: MonadIO' m => Article -> Action m ()
@@ -50,7 +51,7 @@ insertArticle a = do
 unpostedArticles :: DBConfig -> IO [Article]
 unpostedArticles dbConfig = runResourceT . liftIO $ do
     pipe <- runIOE $ connect $ host $ dbHost dbConfig
-    e <- access pipe master (u $ dbName dbConfig) $ findUnposted
+    e <- access pipe master (pack $ dbName dbConfig) $ findUnposted
     r <- result e
     sequence $ map doc2a r
   where

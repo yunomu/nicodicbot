@@ -1,44 +1,43 @@
+{-# LANGUAGE OverloadedStrings, FlexibleContexts #-}
 module Main where
 
 import System.IO
 import System.Environment
 import System.Exit
-import Codec.Binary.UTF8.String (decodeString)
-import Network.Curl
-import Data.Maybe
+import Data.ByteString
+import qualified Data.ByteString.Char8 as BC
+import Data.Conduit
+import Network.HTTP.Conduit
 import Data.Functor
-import qualified Control.Monad.Parallel as P
+
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Control
 
 import Config
 import RssParser
-import Article
-import Store hiding (def)
-import qualified Store as S
 
-article :: Entry -> IO (Maybe Article)
-article entry = do
-    (code, contents) <- curlGetString (rss_link entry) []
-    return $ curlOK code Nothing $ either (\_ -> Nothing) f $ art contents
-  where
-    f a = Just a{a_title = rss_title entry,
-                 a_date = rss_date entry}
-    art contents = getArticle $ decodeString contents
-
-curlOK :: CurlCode -> a -> a -> a
-curlOK CurlOK _   a = a
-curlOK _      def _ = def
+curl :: (MonadResource m, MonadBaseControl IO m) =>
+    String -> m (ResumableSource m ByteString)
+curl url = do
+    request <- liftIO $ parseUrl url
+    manager <- liftIO $ newManager def
+    responseBody <$> http request manager
 
 main :: IO ()
 main = do
-    hSetEncoding stdout utf8
     config <- getConfig
     let uri = cfg_rssuri config
-    (code, contents) <- curlGetString uri []
-    curlOK code (fail $ "Couldn't get rss: " ++ uri) $ return ()
-    let rss = decodeString contents
+    runResourceT $ do
+        rss <- curl uri
+        (src1, entry1) <- rss $$++ itemParser
+        liftIO $ print entry1
+        return ()
+{-
+    let rss = decodeString $ LC.unpack contents
     let keywords = cfg_keywords config
     articles <- fmap catMaybes $ P.mapM (f keywords) $ entries rss
-    store S.def articles
+--    store S.def articles
+    mapM_ putStrLn $ show articles
   where
     f :: [String] -> (Entry -> IO (Maybe Article))
     f keys = \entry -> maybe
@@ -49,13 +48,30 @@ main = do
     toMaybe :: (a -> Bool) -> (a -> Maybe a)
     toMaybe g = \a -> if g a then Just a else Nothing
 
+    article :: Entry -> IO (Maybe Article)
+    article entry = do
+        catch (do 
+            contents <- curl $ rss_link entry
+            let c = art contents
+            print c -- debug
+            return $ either fail ret c)
+          (\_ -> do
+            print entry
+            return Nothing)
+      where
+        ret a = Just a{ a_title = rss_title entry
+                      , a_date = rss_date entry
+                      }
+        art contents = getArticle $ decodeString $ LC.unpack contents
+-}
+  where
     getConfig :: IO Config
     getConfig = getArgs >>= eachCase
     eachCase args
       | n == 1    = loadConfig $ args !! 0
       | otherwise = do
-          hPutStrLn stderr "Usage: nicodicbot config_file"
+          BC.hPutStrLn stderr "Usage: nicodicbot config_file"
           exitFailure
       where
-        n = length args
+        n = Prelude.length args
 

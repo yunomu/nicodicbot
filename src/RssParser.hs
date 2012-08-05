@@ -1,39 +1,52 @@
-module RssParser (Entry(..), entries) where
+{-# LANGUAGE OverloadedStrings #-}
+module RssParser
+    (Item(..), itemParser) where
 
-import Text.XML.HaXml
-import Text.XML.HaXml.Posn
-import Text.XML.HaXml.Util
-import Data.Time
-import System.Locale
+import Control.Applicative
+import Data.Attoparsec
+import Data.ByteString
+import qualified Data.ByteString.Char8 as BC
+import Data.Conduit
+import Data.Conduit.Attoparsec (sinkParser)
 
-data Entry = Entry {
-    rss_title :: String,
-    rss_link :: String,
-    rss_date :: Maybe ZonedTime}
+data Item
+    = Item
+        { title :: ByteString
+        , link :: ByteString
+        , date :: ByteString
+        } deriving Show
 
-instance Show Entry where
-    show e = "{title = \"" ++ rss_title e ++
-             "\", link = " ++ rss_link e ++
-             ", date = " ++ show (rss_date e) ++ "}"
 
-entries :: String -> [Entry]
-entries = map entry . deep (tag "item") . rootContent
+itemParser :: MonadThrow m => GLSink ByteString m Item
+itemParser = sinkParser item
 
-rootContent :: String -> Content Posn
-rootContent str = cont
-  where
-    Document _ _ rootElement _ = xmlParse "" str
-    cont = CElem rootElement noPos
+item :: Parser Item
+item = tag "item" $ do
+    aTitle <- tag "title" next
+    aLink <- tag "link" next
+    tag "description" next
+    aDate <- tag "dc:date" next
+    return $ Item {title = aTitle, link = aLink, date = aDate}
 
-entry :: Content Posn -> Entry
-entry item = Entry {
-    rss_title = tagText "title" item,
-    rss_link = tagText "link" item,
-    rss_date = date $ tagText "dc:date" item}
-  where
-    date = parseTime defaultTimeLocale fmt
-    fmt = "%FT%X%z"
+tag :: ByteString -> Parser a -> Parser a
+tag str p = do
+    inFix $ string $ BC.concat ["<", str]
+    many space
+    inFix $ string ">"
+    ret <- p
+    inFix $ string $ BC.concat ["</", str, ">"]
+    next
+    return ret
 
-tagText :: String -> Content Posn -> String
-tagText t = tagTextContent . head . deep (tag t)
+next :: Parser ByteString
+next = pack <$> (many $ satisfy $ notf $ inClass "<")
+
+notf :: (a -> Bool) -> a -> Bool
+notf f v = not $ f v
+
+space :: Parser ()
+space = skip $ inClass " \t\r\n"
+
+inFix :: Parser a -> Parser a
+inFix p = try p <|> anyWord8 *> inFix p
 

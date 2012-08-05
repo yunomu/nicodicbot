@@ -17,39 +17,33 @@ Data-Files:          nicodicbot.config.sample
 Executable nicodicbot
   Hs-Source-Dirs:    src
   Main-is:           Nicodicbot.hs
-  GHC-Options:       -threaded -Wall
-  Build-depends:     base,
-                     tagsoup,
-                     HaXml,
-                     parsec3,
-                     curl,
-                     utf8-string,
-                     attoparsec,
-                     text,
-                     monad-parallel,
-                     old-locale,
-                     time,
-                     network,
-                     data-default,
-                     authenticate-oauth,
-                     bytestring,
-                     http-conduit,
-                     conduit,
-                     transformers,
-                     mongoDB
- 
-  Other-modules:     Config
-                     Article
-                     RssParser
+  GHC-Options:       -threaded -Wall -fno-warn-unused-do-bind
+  Build-depends:     base
+                   , parsec
+                   , utf8-string
+                   , attoparsec
+                   , text
+                   , old-locale
+                   , time
+                   , network
+                   , data-default
+                   , authenticate-oauth
+                   , bytestring
+                   , http-conduit
+                   , conduit == 0.5.*
+                   , transformers
+                   , attoparsec-conduit == 0.5.*
+                   , failure
+                   , monad-control
 
-Executable ndpost
-  Hs-Source-Dirs:    src
-  Main-is:           NdPost.hs
-  GHC-Options:       -Wall
-
-  Other-Modules:     Config
-                     Twitter
-                     Article
+--Executable ndpost
+--  Hs-Source-Dirs:    src
+--  Main-is:           NdPost.hs
+--  GHC-Options:       -Wall
+--
+--  Other-Modules:     Config
+--                     Twitter
+--                     Article
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:         
