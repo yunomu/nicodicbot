@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings, FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts, NoMonomorphismRestriction #-}
 module Main where
 
 import System.IO
@@ -7,13 +8,16 @@ import System.Exit
 import Data.ByteString
 import qualified Data.ByteString.Char8 as BC
 import Data.Conduit
+import qualified Data.Conduit.Binary as CB
 import Network.HTTP.Conduit
 import Data.Functor
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Control
+import Control.Concurrent
 
 import Config
+--import Article
 import RssParser
 
 curl :: (MonadResource m, MonadBaseControl IO m) =>
@@ -23,15 +27,25 @@ curl url = do
     manager <- liftIO $ newManager def
     responseBody <$> http request manager
 
+procArticle :: Item -> IO ()
+procArticle item = runResourceT $ do
+    body <- (curl $ BC.unpack $ link item) >>= ($$+- CB.take 10240)
+    liftIO $ print item
+
+procEntries :: (MonadResource m, MonadBaseControl IO m) =>
+    GLSink ByteString m ()
+procEntries = do
+    item <- itemParser
+--    liftIO $ forkIO $ procArticle item
+    liftIO $ procArticle item
+    procEntries
+
 main :: IO ()
 main = do
     config <- getConfig
     let uri = cfg_rssuri config
     runResourceT $ do
-        rss <- curl uri
-        (src1, entry1) <- rss $$++ itemParser
-        liftIO $ print entry1
-        return ()
+        curl uri >>= ($$+- procEntries)
 {-
     let rss = decodeString $ LC.unpack contents
     let keywords = cfg_keywords config

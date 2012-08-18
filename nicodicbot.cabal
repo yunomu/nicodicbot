@@ -35,6 +35,7 @@ Executable nicodicbot
                    , attoparsec-conduit == 0.5.*
                    , failure
                    , monad-control
+                   , tagsoup
 
 --Executable ndpost
 --  Hs-Source-Dirs:    src

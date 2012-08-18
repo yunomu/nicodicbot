@@ -17,18 +17,16 @@ data Article = Article {
     a_id :: String,
     a_title :: String,
     a_link :: String,
-    a_date :: Maybe ZonedTime,
     a_body :: String}
 
 instance Show Article where
     show a = "A {id = " ++ a_id a
       ++ ", title = " ++ a_title a
       ++ ", link = " ++ a_link a
-      ++ ", date = \"" ++ maybe "" show (a_date a)
       ++ "\", body = \"" ++ Prelude.take 20 (a_body a) ++ "...\"}"
 
 dump :: Article -> String
-dump a = join [a_title a, a_link a, maybe "" show $ a_date a]
+dump a = join [a_id a, a_title a, a_link a]
   where
     join []     = error "dump error"
     join [f]    = f
@@ -36,14 +34,12 @@ dump a = join [a_title a, a_link a, maybe "" show $ a_date a]
 
 getArticle :: String -> Either String Article
 getArticle content = do
-    adate <- Right Nothing
     abody <- getBody tags
     aid <- getId abody
     return Article {
       a_id = aid,
       a_title = "",
       a_link = "http://dic.nicovideo.jp/id/" ++ aid,
-      a_date = adate,
       a_body = abody}
   where
     tags = parseTags content
