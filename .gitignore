@@ -1,3 +1,5 @@
 *.o
 *.hi
 dist
+test
+cabal-dev
