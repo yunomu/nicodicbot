@@ -35,7 +35,7 @@ Executable nicodicbot
                    , attoparsec-conduit == 0.5.*
                    , failure
                    , monad-control
-                   , tagsoup
+                   , template-haskell
 
 --Executable ndpost
 --  Hs-Source-Dirs:    src
