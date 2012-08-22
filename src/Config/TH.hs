@@ -36,13 +36,14 @@ mkParser (n, cl) = do
 confBind :: ConfLine -> StmtQ
 confBind (name, ctype) = do
     n <- newName "x"
-    let pat = varP n
-    undefined
+    let var = varP n
+    bindS var $ appE (confParser ctype) [|name|]
 
-confVarQ :: ConfType -> ExpQ
-confVarQ ConfString = varE 'stringVal
-confVarQ ConfURI = varE 'uriVal
-confVarQ (ConfList ctype) = undefined --varE 'listVal
+confParser :: ConfType -> ExpQ
+confParser ConfString = appE (varE 'val) (varE 'cv_string)
+confParser ConfURI = appE (varE 'val) (varE 'cv_uri)
+confParser (ConfList ctype) =
+    appE (varE 'val) $ appE (varE 'cv_list) (confParser ctype)
 
 {-
 parser :: Parser Config
@@ -50,5 +51,23 @@ parser = do
     string "rssuri"
     val <- cv_string
     return $ Config {rssuri = val}
+
+[ValD
+ (VarP p_0)
+ (NormalB
+  (DoE
+   [BindS
+     (VarP val_1)
+     (AppE
+      (AppE
+       (VarE Config.Lib.val)
+       (VarE Config.Lib.cv_string))
+      (LitE (StringL "rssuri"))),
+    NoBindS
+     (AppE
+      (VarE GHC.Base.return)
+      (RecConE Config.Internal.Config [(Config.Internal.rssuri,VarE val_1)]))]
+  )) []]
+
 -}
 

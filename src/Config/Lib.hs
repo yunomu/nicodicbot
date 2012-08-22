@@ -27,17 +27,8 @@ spcs1 = () <$ many1 spc
 spc :: Parser Char
 spc = satisfy (`elem` " \t")
 
-stringVal :: String -> Parser String
-stringVal name = val name cv_string
-
-listVal :: String -> Parser p -> Parser [p]
-listVal name p = val name $ cv_list p
-
-uriVal :: String -> Parser String
-uriVal name = val name cv_uri
-
-val :: String -> Parser a -> Parser a
-val name p = (string name *> spcs *> sep *> p) <* spcs <* commentLine
+val :: Parser a -> String -> Parser a
+val p name = (string name *> spcs *> sep *> p) <* spcs <* commentLine
 
 cv_string :: Parser String
 cv_string = many1 (noneOf ", \t\r\n") <* spcs
