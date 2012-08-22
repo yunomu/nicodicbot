@@ -26,7 +26,7 @@ curl url = do
 main :: IO ()
 main = do
     config <- getConfig
-    let uri = cfg_rssuri config
+    let uri = rssuri config
     runResourceT $ do
         rss <- curl uri
         (src1, entry1) <- rss $$++ itemParser
