@@ -7,5 +7,5 @@ import Language.Haskell.TH
 import Config.TH
 import Config.Parser
 
-runIO (loadConfigTmp "config") >>= construct
+runIO (loadConfigTmp "config") >>= construct "configParser"
 
