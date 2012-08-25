@@ -50,26 +50,25 @@ mkParser :: String -> ConfTmp -> DecsQ
 mkParser name (n, cl) = do
     let recName = mkName n
     let funcName = mkName name
-    (binds, cons) <- unzip <$> mapM confBind cl
     s <- sigD funcName $ appT (conT ''Parser) (conT recName)
-    let nob = appE (varE 'return) $ recConE recName cons
-    let doe = doE (binds ++ [noBindS nob])
-    v <- valD (varP funcName) (normalB doe) []
+    (binds, cons) <- unzip <$> mapM confBind cl
+    let consRec = appE (varE 'return) $ recConE recName cons
+    let body = doE (binds ++ [noBindS consRec])
+    v <- valD (varP funcName) (normalB body) []
     return [s, v]
 
 {-
     val1 <- val cv_string "field1"
 と
     filed1 = val1
-の部分
+の部分を作る
 -}
 confBind :: ConfLine -> Q (StmtQ, Q (Name, Exp))
 confBind (name, ctype) = do
-    bn <- newName "x"
-    let parser = appE (varE 'val) $ confParser ctype
-    let s = bindS (varP bn) $ appE parser $ stringE name
-    e <- varE bn
-    return (s, return (mkName name, e))
+    n <- newName "x"
+    let parser = appE (appE (varE 'val) $ confParser ctype) $ stringE name
+    e <- varE n
+    return (bindS (varP n) parser, return (mkName name, e))
 
 {-
     val cv_string
