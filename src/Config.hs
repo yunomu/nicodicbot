@@ -4,11 +4,12 @@ module Config (
   ) where
 
 import Control.Applicative hiding ((<|>), many, optional)
-import Text.Parsec
+import Text.Parsec hiding (State)
 import Text.Parsec.String
 import qualified System.IO.UTF8 as UTF8
 import Network.URI
 import Data.Default
+import Control.Monad.State
 
 data Conf = RSSURI String
           | Keywords [String]
@@ -63,20 +64,17 @@ loadConfig filePath = do
       Right conf -> return $ makeConfig conf
 
 makeConfig :: [Conf] -> Config
-makeConfig = makeConfig' def
-  where
-    makeConfig' conf []     = conf
-    makeConfig' conf (c:cs) = case c of
-        RSSURI a            -> m conf{cfg_rssuri = a}
-        Keywords a          -> m conf{cfg_keywords = a}
-        ConsumerKey a       -> m conf{cfg_consumer_key = a}
-        ConsumerSecret a    -> m conf{cfg_consumer_secret = a}
-        AccessToken a       -> m conf{cfg_access_token = a}
-        AccessTokenSecret a -> m conf{cfg_access_token_secret = a}
-        DBHost a            -> m conf{cfg_db_host = a}
-        DBName a            -> m conf{cfg_db_name = a}
-      where
-        m cfg = makeConfig' cfg cs
+makeConfig confs = flip execState def $ mapM_ mkConf confs
+
+mkConf :: Conf -> State Config ()
+mkConf (RSSURI a) = get >>= \c -> put c{cfg_rssuri = a}
+mkConf (Keywords a) = get >>= \c -> put c{cfg_keywords = a}
+mkConf (ConsumerKey a) = get >>= \c -> put c{cfg_consumer_key = a}
+mkConf (ConsumerSecret a) = get >>= \c -> put c{cfg_consumer_secret = a}
+mkConf (AccessToken a) = get >>= \c -> put c{cfg_access_token = a}
+mkConf (AccessTokenSecret a) = get >>= \c -> put c{cfg_access_token_secret = a}
+mkConf (DBHost a) = get >>= \c -> put c{cfg_db_host = a}
+mkConf (DBName a) = get >>= \c -> put c{cfg_db_name = a}
 
 config :: Parser [Conf]
 config = commentLines *> many1 confline <* eof

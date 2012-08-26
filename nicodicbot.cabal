@@ -36,7 +36,8 @@ Executable nicodicbot
                      http-conduit,
                      conduit,
                      transformers,
-                     mongoDB
+                     mongoDB,
+                     mtl
  
   Other-modules:     Config
                      Article

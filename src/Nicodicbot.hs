@@ -12,8 +12,8 @@ import qualified Control.Monad.Parallel as P
 import Config
 import RssParser
 import Article
-import Store hiding (def)
-import qualified Store as S
+--import Store hiding (def)
+--import qualified Store as S
 
 article :: Entry -> IO (Maybe Article)
 article entry = do
@@ -38,7 +38,8 @@ main = do
     let rss = decodeString contents
     let keywords = cfg_keywords config
     articles <- fmap catMaybes $ P.mapM (f keywords) $ entries rss
-    store S.def articles
+    undefined
+--    store S.def articles
   where
     f :: [String] -> (Entry -> IO (Maybe Article))
     f keys = \entry -> maybe
