@@ -5,12 +5,18 @@ module Config.TH where
 import Language.Haskell.TH
 import Control.Applicative
 import Text.Parsec.ByteString (Parser)
+import Data.Default
 
 import Config.Types
 import Config.Lib
 
 construct :: String -> ConfTmp -> DecsQ
-construct name tmp = (:) <$> mkRecord tmp <*> mkParser name tmp
+construct name tmp = f
+    <$> mkRecord tmp
+    <*> instanceDef tmp
+    <*> mkParser name tmp
+  where
+    f a b c = a:b:c
 
 {-
 レコードを作る。
@@ -19,10 +25,7 @@ mkRecord :: ConfTmp -> DecQ
 mkRecord (nameStr, confLines) =
     dataD (cxt []) recName [] [rec] [''Show]
   where
-    recName :: Name
     recName = mkName nameStr
-
-    rec :: ConQ
     rec = recC recName $ map confVSType confLines
 
 confVSType :: ConfLine -> VarStrictTypeQ
@@ -36,6 +39,23 @@ confTypeQ (ConfList ctype) = appT listT $ confTypeQ ctype
 confVSType' :: String -> TypeQ -> VarStrictTypeQ
 confVSType' name typeq =
     varStrictType (mkName name) $ strictType notStrict typeq
+
+{-
+Data.Defaultのインスタンスにする
+-}
+instanceDef :: ConfTmp -> DecQ
+instanceDef (nameStr, confLines) =
+    instanceD (return []) types [func]
+  where
+    recName = mkName nameStr
+    types = appT (conT ''Default) (conT recName)
+    cons = recConE recName $ map defVal confLines
+    func = valD (varP 'def) (normalB cons) []
+
+defVal :: ConfLine -> Q (Name, Exp)
+defVal (n, ConfString) = (,) (mkName n) <$> [|""|]
+defVal (n, ConfURI)    = (,) (mkName n) <$> [|"http://localhost/"|]
+defVal (n, ConfList _) = (,) (mkName n) <$> [|[]|]
 
 {-
 こういうのを作る
@@ -67,8 +87,8 @@ confBind :: ConfLine -> Q (StmtQ, Q (Name, Exp))
 confBind (name, ctype) = do
     n <- newName "x"
     let parser = appE (appE (varE 'val) $ confParser ctype) $ stringE name
-    e <- varE n
-    return (bindS (varP n) parser, return (mkName name, e))
+    let con = (,) (mkName name) <$> varE n
+    return (bindS (varP n) parser, con)
 
 {-
     val cv_string
