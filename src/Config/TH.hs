@@ -7,6 +7,8 @@ import Control.Applicative
 import Text.Parsec
 import Text.Parsec.ByteString (Parser)
 import Data.Default
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State
 
 import Config.Types
 import Config.Lib
@@ -27,6 +29,21 @@ val p name = do
     put c{name=a}
     return ()
 -}
+mkVal :: String -> DecQ
+mkVal n = do
+    sigD funcName sigt
+  where
+    recName = mkName n
+    funcName = mkName "val"
+    spt = appT (appT arrowT (conT ''String)) $ appT
+        (appT
+            (appT
+                (conT ''StateT)
+                (conT recName))
+            (conT ''Parser))
+        (conT ''())
+    pt = appT (conT ''Parser) (varT =<< newName "a")
+    sigt = appT (appT arrowT pt) spt
 
 {-
 レコードを作る。
