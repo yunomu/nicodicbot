@@ -27,9 +27,6 @@ spcs1 = () <$ many1 spc
 spc :: Parser Char
 spc = satisfy (`elem` " \t")
 
-val :: Parser a -> String -> Parser a
-val p name = (string name *> spcs *> sep *> p) <* spcs <* commentLine
-
 cv_string :: Parser String
 cv_string = many1 (noneOf ", \t\r\n") <* spcs
 

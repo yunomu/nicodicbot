@@ -4,6 +4,7 @@ module Config.TH where
 
 import Language.Haskell.TH
 import Control.Applicative
+import Text.Parsec
 import Text.Parsec.ByteString (Parser)
 import Data.Default
 
@@ -17,6 +18,15 @@ construct name tmp = f
     <*> mkParser name tmp
   where
     f a b c = a:b:c
+
+{-
+val :: Parser a -> String -> StateT Config Parser ()
+val p name = do
+    a <- lift $ (string name *> spcs *> sep *> p) <* spcs <* commentLine
+    c <- get
+    put c{name=a}
+    return ()
+-}
 
 {-
 レコードを作る。
@@ -98,4 +108,7 @@ confParser :: ConfType -> ExpQ
 confParser ConfString = (varE 'cv_string)
 confParser ConfURI = (varE 'cv_uri)
 confParser (ConfList ctype) = appE (varE 'cv_list) (confParser ctype)
+
+val :: Parser a -> String -> Parser a
+val p name = (string name *> spcs *> sep *> p) <* spcs <* commentLine
 
