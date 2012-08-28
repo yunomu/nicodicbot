@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ConstraintKinds #-}
 --module Config.TH (construct) where
 module Config.TH where
 
@@ -27,23 +28,26 @@ val p name = do
     a <- lift $ (string name *> spcs *> sep *> p) <* spcs <* commentLine
     c <- get
     put c{name=a}
-    return ()
 -}
 mkVal :: String -> DecQ
 mkVal n = do
     sigD funcName sigt
+    varp <- newName "p"
+    varname <- newName "name"
+    vara <- newName "a"
+    varc <- newName "c"
+    body <- doE [
+        bindS (varP vara) [|lift $ (string $(varE varname) *> spcs *> sep *> $(varE varp)) <* spcs <* commentLine|],
+        bindS (varP varc) [|get|],
+        noBindS $ appE [|put|] $ recConE varc [(,) vara <$> varE varname]]
+    undefined
   where
     recName = mkName n
     funcName = mkName "val"
-    spt = appT (appT arrowT (conT ''String)) $ appT
-        (appT
-            (appT
-                (conT ''StateT)
-                (conT recName))
-            (conT ''Parser))
-        (conT ''())
-    pt = appT (conT ''Parser) (varT =<< newName "a")
-    sigt = appT (appT arrowT pt) spt
+    sigt = [t|
+        Parser $(varT =<< newName "a")
+        -> String
+        -> StateT $(conT recName) Parser ()|]
 
 {-
 レコードを作る。
@@ -75,7 +79,7 @@ instanceDef (nameStr, confLines) =
     instanceD (return []) types [func]
   where
     recName = mkName nameStr
-    types = appT (conT ''Default) (conT recName)
+    types = [t|Default $(conT recName)|]
     cons = recConE recName $ map defVal confLines
     func = valD (varP 'def) (normalB cons) []
 
@@ -97,9 +101,9 @@ mkParser :: String -> ConfTmp -> DecsQ
 mkParser name (n, cl) = do
     let recName = mkName n
     let funcName = mkName name
-    s <- sigD funcName $ appT (conT ''Parser) (conT recName)
+    s <- sigD funcName [t|Parser $(conT recName)|]
     (binds, cons) <- unzip <$> mapM confBind cl
-    let consRec = appE (varE 'return) $ recConE recName cons
+    let consRec = [|return $(recConE recName cons)|]
     let body = doE (binds ++ [noBindS consRec])
     v <- valD (varP funcName) (normalB body) []
     return [s, v]
@@ -113,7 +117,7 @@ mkParser name (n, cl) = do
 confBind :: ConfLine -> Q (StmtQ, Q (Name, Exp))
 confBind (name, ctype) = do
     n <- newName "x"
-    let parser = appE (appE (varE 'val) $ confParser ctype) $ stringE name
+    let parser = [|val $(confParser ctype) name|]
     let con = (,) (mkName name) <$> varE n
     return (bindS (varP n) parser, con)
 
@@ -122,9 +126,9 @@ confBind (name, ctype) = do
 の部分をConfTypeごとに作る
 -}
 confParser :: ConfType -> ExpQ
-confParser ConfString = (varE 'cv_string)
-confParser ConfURI = (varE 'cv_uri)
-confParser (ConfList ctype) = appE (varE 'cv_list) (confParser ctype)
+confParser ConfString = [|cv_string|]
+confParser ConfURI = [|cv_uri|]
+confParser (ConfList ctype) = [|cv_list $(confParser ctype)|]
 
 val :: Parser a -> String -> Parser a
 val p name = (string name *> spcs *> sep *> p) <* spcs <* commentLine
