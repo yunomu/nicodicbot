@@ -11,6 +11,8 @@ import Data.Conduit.Attoparsec (sinkParser)
 import Data.Time
 import System.Locale
 
+--import ParserLib
+
 data Item = Item {
     title :: ByteString,
     link :: ByteString,
@@ -44,14 +46,14 @@ tag str p = do
     next
     return ret
 
+space :: Parser ()
+space = skip $ inClass " \t\r\n"
+
 next :: Parser ByteString
 next = pack <$> (many $ satisfy $ notf $ inClass "<")
 
 notf :: (a -> Bool) -> a -> Bool
 notf f v = not $ f v
-
-space :: Parser ()
-space = skip $ inClass " \t\r\n"
 
 inFix :: Parser a -> Parser a
 inFix p = try p <|> anyWord8 *> inFix p

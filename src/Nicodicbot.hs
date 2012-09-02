@@ -14,7 +14,6 @@ import Data.Functor
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Control
-import Control.Concurrent
 
 import Config
 --import Article
