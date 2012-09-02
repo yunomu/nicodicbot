@@ -1,125 +1,117 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ConstraintKinds #-}
---module Config.TH (construct) where
-module Config.TH where
+module Config.TH (construct) where
 
 import Language.Haskell.TH
 import Control.Applicative
-import Text.Parsec
+import Text.Parsec hiding ((<|>), many)
 import Text.Parsec.ByteString (Parser)
 import Data.Default
-import Control.Monad.Trans.Class
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State
 
 import Config.Types
 import Config.Lib
 
 construct :: String -> ConfTmp -> DecsQ
-construct name tmp = f
-    <$> mkRecord tmp
-    <*> instanceDef tmp
-    <*> mkParser name tmp
+construct name (nameStr, confLines) = f
+    <$> mkRecord recName confLines
+    <*> instanceDef recName confLines
+    <*> mkParsers recName confLines
+    <*> mkParser name recName confLines
   where
-    f a b c = a:b:c
-
-{-
-val :: Parser a -> String -> StateT Config Parser ()
-val p name = do
-    a <- lift $ (string name *> spcs *> sep *> p) <* spcs <* commentLine
-    c <- get
-    put c{name=a}
--}
-mkVal :: String -> DecQ
-mkVal n = do
-    sigD funcName sigt
-    varp <- newName "p"
-    varname <- newName "name"
-    vara <- newName "a"
-    varc <- newName "c"
-    body <- doE [
-        bindS (varP vara) [|lift $ (string $(varE varname) *> spcs *> sep *> $(varE varp)) <* spcs <* commentLine|],
-        bindS (varP varc) [|get|],
-        noBindS $ appE [|put|] $ recConE varc [(,) vara <$> varE varname]]
-    undefined
-  where
-    recName = mkName n
-    funcName = mkName "val"
-    sigt = [t|
-        Parser $(varT =<< newName "a")
-        -> String
-        -> StateT $(conT recName) Parser ()|]
+    recName = mkName nameStr
+    f a b c d = a:b:(c++d)
 
 {-
 レコードを作る。
 -}
-mkRecord :: ConfTmp -> DecQ
-mkRecord (nameStr, confLines) =
+mkRecord :: Name -> [ConfLine] -> DecQ
+mkRecord recName confLines =
     dataD (cxt []) recName [] [rec] [''Show]
   where
-    recName = mkName nameStr
     rec = recC recName $ map confVSType confLines
 
-confVSType :: ConfLine -> VarStrictTypeQ
-confVSType (name, ctype) = confVSType' name $ confTypeQ ctype
+    confVSType :: ConfLine -> VarStrictTypeQ
+    confVSType (name, ctype) = confVSType' name $ confTypeQ ctype
 
-confTypeQ :: ConfType -> TypeQ
-confTypeQ ConfString = [t|String|]
-confTypeQ ConfURI = [t|String|]
-confTypeQ (ConfList ctype) = appT listT $ confTypeQ ctype
+    confVSType' :: String -> TypeQ -> VarStrictTypeQ
+    confVSType' name typeq =
+        varStrictType (mkName name) $ strictType notStrict typeq
 
-confVSType' :: String -> TypeQ -> VarStrictTypeQ
-confVSType' name typeq =
-    varStrictType (mkName name) $ strictType notStrict typeq
+    confTypeQ :: ConfType -> TypeQ
+    confTypeQ ConfString = [t|String|]
+    confTypeQ ConfURI = [t|String|]
+    confTypeQ (ConfList ctype) = [t|[$(confTypeQ ctype)]|]
 
 {-
 Data.Defaultのインスタンスにする
 -}
-instanceDef :: ConfTmp -> DecQ
-instanceDef (nameStr, confLines) =
+instanceDef :: Name -> [ConfLine] -> DecQ
+instanceDef recName confLines =
     instanceD (return []) types [func]
   where
-    recName = mkName nameStr
     types = [t|Default $(conT recName)|]
     cons = recConE recName $ map defVal confLines
     func = valD (varP 'def) (normalB cons) []
 
-defVal :: ConfLine -> Q (Name, Exp)
-defVal (n, ConfString) = (,) (mkName n) <$> [|""|]
-defVal (n, ConfURI)    = (,) (mkName n) <$> [|"http://localhost/"|]
-defVal (n, ConfList _) = (,) (mkName n) <$> [|[]|]
+    defVal :: ConfLine -> Q (Name, Exp)
+    defVal (n, ConfString) = (,) (mkName n) <$> [|""|]
+    defVal (n, ConfURI)    = (,) (mkName n) <$> [|"http://localhost/"|]
+    defVal (n, ConfList _) = (,) (mkName n) <$> [|[]|]
+
+mkParsers :: Name -> [ConfLine] -> DecsQ
+mkParsers recName confLines =
+    concat <$> mapM (mkVal recName) confLines
+
+{-
+val_field :: StateT Config Parser ()
+val_field = do
+    a <- lift $ val cv_string "field"
+    c <- get
+    put c{field=a}
+-}
+mkVal :: Name -> ConfLine -> DecsQ
+mkVal recName (name, ctype) = do
+    s <- sigD funcName sigt
+    a <- newName "a"
+    c <- newName "c"
+    f <- funD funcName [clause [] (body a c) []]
+    return [s, f]
+  where
+    fieldName = mkName name
+    funcName = parserName name
+    sigt = [t|StateT $(conT recName) Parser ()|]
+    body a c = normalB $ doE [
+        bindS (varP a) [|lift $ try $ val $(confParser ctype) name|],
+        bindS (varP c) [|get|],
+        noBindS [|put $(recUpdE (varE c) [(,) fieldName <$> (varE a)])|]]
 
 {-
 こういうのを作る
 configParser :: Parser Config
-configParser = do
-    val1 <- val cv_string "field1"
-    val2 <- val cv_uri "field2"
-    val3 <- val cv_int "field3"
-    return $ Record {field1 = val, field2 = val2, field3 = val3}
+configParser = execStateT (lift commentLines *> (many (parsers <* lift commentLines)) <* lift eof) def
 -}
-mkParser :: String -> ConfTmp -> DecsQ
-mkParser name (n, cl) = do
-    let recName = mkName n
-    let funcName = mkName name
+mkParser :: String -> Name -> [ConfLine] -> DecsQ
+mkParser name recName cl = do
     s <- sigD funcName [t|Parser $(conT recName)|]
-    (binds, cons) <- unzip <$> mapM confBind cl
-    let consRec = [|return $(recConE recName cons)|]
-    let body = doE (binds ++ [noBindS consRec])
     v <- valD (varP funcName) (normalB body) []
     return [s, v]
+  where
+    funcName = mkName name
+    body = [|execStateT (lift commentLines *> (many ($(getFieldParser cl) <* lift commentLines)) <* lift eof) def|]
 
 {-
-    val1 <- val cv_string "field1"
-と
-    filed1 = val1
-の部分を作る
--}
-confBind :: ConfLine -> Q (StmtQ, Q (Name, Exp))
-confBind (name, ctype) = do
-    n <- newName "x"
-    let parser = [|val $(confParser ctype) name|]
-    let con = (,) (mkName name) <$> varE n
-    return (bindS (varP n) parser, con)
+ - こういう式
+fold1 (<|>) [val_string, val_uri, val_int]
+ -}
+getFieldParser :: [ConfLine] -> ExpQ
+getFieldParser confLines = [|foldl1 (<|>) $(listE funcs)|]
+  where
+    funcs = map (varE . parserName . fst) confLines
+
+parserName :: String -> Name
+parserName name = mkName $ "val_" ++ name
 
 {-
     val cv_string
