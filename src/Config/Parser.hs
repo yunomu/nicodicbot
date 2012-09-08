@@ -1,26 +1,31 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Config.Parser
     ( loadConfigTmp
+    , confTmpParser
     ) where
 
 import Text.Parsec
 import Text.Parsec.ByteString
 import Control.Applicative hiding (many, (<|>))
-import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BC
 
 import Config.Lib
 import Config.Types
 
 loadConfigTmp :: String -> IO ConfTmp
 loadConfigTmp filepath = do
-    str <- BS.readFile filepath
-    case parse confTmp "" str of
-        Left err   -> fail $ show err
-        Right conf -> return conf
+    str <- readFile filepath
+    return $ confTmpParser str
+
+confTmpParser :: String -> ConfTmp
+confTmpParser str =
+    case parse confTmp "" (BC.pack str) of
+        Left err   -> error $ show err
+        Right conf -> conf
 
 confTmp :: Parser ConfTmp
 confTmp = (,)
-    <$> (key <* spcs <* commentLines)
+    <$> (commentLines *> key <* spcs <* commentLines)
     <*> confLines
 
 confLines :: Parser [ConfLine]

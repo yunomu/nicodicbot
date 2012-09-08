@@ -1,8 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ConstraintKinds #-}
-module Config.TH (construct) where
+module Config.TH
+    ( construct
+    , config
+    ) where
 
 import Language.Haskell.TH
+import Language.Haskell.TH.Quote
 import Control.Applicative
 import Text.Parsec hiding ((<|>), many)
 import Text.Parsec.ByteString (Parser)
@@ -10,8 +14,17 @@ import Data.Default
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State
 
+import Config.Parser
 import Config.Types
 import Config.Lib
+
+config :: QuasiQuoter
+config = QuasiQuoter
+    { quoteExp = \str -> [|confTmpParser str|]
+    , quotePat = undefined
+    , quoteType = undefined
+    , quoteDec = undefined
+    }
 
 construct :: String -> ConfTmp -> DecsQ
 construct name (nameStr, confLines) = f
