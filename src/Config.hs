@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
 
 module Config
@@ -6,12 +5,12 @@ module Config
     , loadConfig
     ) where
 
+import Text.Config
 import Text.Parsec
 import qualified Data.ByteString as BS
 
-import Config.TH
 
-construct "configParser" [config|
+mkConfig "configParser" [config|
 Config
     rssuri URI
     keywords [String]

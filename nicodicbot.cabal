@@ -19,7 +19,7 @@ Executable nicodicbot
   Main-is:           Nicodicbot.hs
   GHC-Options:       -threaded -Wall -fno-warn-unused-do-bind
   Build-depends:     base
-                   , parsec
+                   , parsec3
                    , utf8-string
                    , attoparsec
                    , text
@@ -37,6 +37,7 @@ Executable nicodicbot
                    , monad-control
                    , template-haskell
                    , mtl
+                   , simple-config
 
 --Executable ndpost
 --  Hs-Source-Dirs:    src
