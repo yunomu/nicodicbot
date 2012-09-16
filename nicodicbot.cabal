@@ -38,6 +38,10 @@ Executable nicodicbot
                    , template-haskell
                    , mtl
                    , simple-config
+                   , html-conduit
+                   , xml-conduit
+                   , xml-types
+                   , safe
 
 --Executable ndpost
 --  Hs-Source-Dirs:    src
