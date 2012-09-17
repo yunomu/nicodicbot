@@ -5,10 +5,9 @@ module Main where
 import System.IO
 import System.Environment
 import System.Exit
-import Data.ByteString
+import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BC
 import Data.Conduit
-import qualified Data.Conduit.Binary as CB
 import Network.HTTP.Conduit
 import Data.Functor
 import Control.Monad.IO.Class
@@ -16,9 +15,13 @@ import Control.Monad.Trans.Control
 import Control.Monad.Trans.Resource
 import qualified Control.Exception.Lifted as E
 import Data.Conduit.Attoparsec
+import Data.Text (Text)
+import qualified Data.Text as T
+import Control.Concurrent.Event
+import Debug.Trace
 
 import Config
---import Article
+import Article
 import RssParser
 
 curl :: (MonadResource m, MonadBaseControl IO m) =>
@@ -29,37 +32,40 @@ curl url = do
     responseBody <$> http request manager
 
 procArticle :: (MonadResource m, MonadBaseControl IO m)
-    => Item -> m ()
-procArticle item = do
-    body <- (curl $ BC.unpack $ link item) >>= ($$+- CB.take 10240)
-    liftIO $ print item
+    => [Text] -> Item -> m ()
+procArticle keys item = do
+    a <- (curl $ BC.unpack $ link item) >>= ($$+- sinkArticle keys)
+    return ()
+--    liftIO $ print item
+--    liftIO $ print a
 
-procEntries' :: (MonadResource m, MonadBaseControl IO m) =>
-    GLSink ByteString m ()
-procEntries' = do
-    item <- itemParser
---    resourceForkIO $ procArticle item
---    procArticle item
-    procEntries'
-
-procEntries :: (MonadResource m, MonadBaseControl IO m) =>
-    ResumableSource m ByteString -> m ()
-procEntries src = do
-    (src1, item) <- src $$++ itemParser
-    --E.handle (const $ return ()) $ procEntries src1
-    procEntries src1
-{-
+procEntries :: (MonadResource m, MonadBaseControl IO m)
+    => [Text] -> ResumableSource m ByteString -> m ()
+procEntries keys src0 = procEntries' src0 []
   where
-    handler :: (MonadResource m, MonadBaseControl IO m) =>
-        ParseError e -> m ()
-    handler _ = return ()
--}
+    procEntries' src es = do
+        (src1, item) <- src $$++ itemParser
+        e <- fork $ procArticle keys item
+        let nes = e:es
+        E.handle (ignore nes) $ procEntries' src1 nes
+
+    ignore :: (MonadResource m, MonadBaseControl IO m)
+        => [Event] -> ParseError -> m ()
+    ignore es _ = liftIO $ mapM_ wait es
+
+    fork proc = do
+        event <- liftIO new
+        runResourceT $ resourceForkIO $ withEvent event proc
+        return event
+
+    withEvent event proc = E.finally proc $ liftIO $ set event
 
 main :: IO ()
 main = do
     config <- getConfig
     let uri = rssuri config
-    runResourceT $ curl uri >>= procEntries
+    let keys = keywords config
+    runResourceT $ curl uri >>= procEntries (map T.pack keys)
   where
     getConfig :: IO Config
     getConfig = getArgs >>= eachCase

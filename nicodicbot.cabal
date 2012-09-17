@@ -44,6 +44,7 @@ Executable nicodicbot
                    , safe
                    , resourcet
                    , lifted-base
+                   , concurrent-extra
 
 --Executable ndpost
 --  Hs-Source-Dirs:    src
