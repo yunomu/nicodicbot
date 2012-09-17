@@ -43,6 +43,7 @@ Executable nicodicbot
                    , xml-types
                    , safe
                    , resourcet
+                   , lifted-base
 
 --Executable ndpost
 --  Hs-Source-Dirs:    src

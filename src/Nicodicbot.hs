@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts, NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Main where
 
 import System.IO
@@ -11,10 +11,11 @@ import Data.Conduit
 import qualified Data.Conduit.Binary as CB
 import Network.HTTP.Conduit
 import Data.Functor
-
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Control
 import Control.Monad.Trans.Resource
+import qualified Control.Exception.Lifted as E
+import Data.Conduit.Attoparsec
 
 import Config
 --import Article
@@ -33,52 +34,32 @@ procArticle item = do
     body <- (curl $ BC.unpack $ link item) >>= ($$+- CB.take 10240)
     liftIO $ print item
 
-procEntries :: (MonadResource m, MonadBaseControl IO m) =>
+procEntries' :: (MonadResource m, MonadBaseControl IO m) =>
     GLSink ByteString m ()
-procEntries = do
+procEntries' = do
     item <- itemParser
 --    resourceForkIO $ procArticle item
 --    procArticle item
-    procEntries
+    procEntries'
+
+procEntries :: (MonadResource m, MonadBaseControl IO m) =>
+    ResumableSource m ByteString -> m ()
+procEntries src = do
+    (src1, item) <- src $$++ itemParser
+    --E.handle (const $ return ()) $ procEntries src1
+    procEntries src1
+{-
+  where
+    handler :: (MonadResource m, MonadBaseControl IO m) =>
+        ParseError e -> m ()
+    handler _ = return ()
+-}
 
 main :: IO ()
 main = do
     config <- getConfig
     let uri = rssuri config
-    runResourceT $ do
-        curl uri >>= ($$+- procEntries)
-{-
-    let rss = decodeString $ LC.unpack contents
-    let keywords = cfg_keywords config
-    articles <- fmap catMaybes $ P.mapM (f keywords) $ entries rss
---    store S.def articles
-    mapM_ putStrLn $ show articles
-  where
-    f :: [String] -> (Entry -> IO (Maybe Article))
-    f keys = \entry -> maybe
-        Nothing
-        (toMaybe $ strContain keys)
-        <$> article entry
-
-    toMaybe :: (a -> Bool) -> (a -> Maybe a)
-    toMaybe g = \a -> if g a then Just a else Nothing
-
-    article :: Entry -> IO (Maybe Article)
-    article entry = do
-        catch (do 
-            contents <- curl $ rss_link entry
-            let c = art contents
-            print c -- debug
-            return $ either fail ret c)
-          (\_ -> do
-            print entry
-            return Nothing)
-      where
-        ret a = Just a{ a_title = rss_title entry
-                      , a_date = rss_date entry
-                      }
-        art contents = getArticle $ decodeString $ LC.unpack contents
--}
+    runResourceT $ curl uri >>= procEntries
   where
     getConfig :: IO Config
     getConfig = getArgs >>= eachCase
