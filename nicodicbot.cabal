@@ -42,6 +42,7 @@ Executable nicodicbot
                    , xml-conduit
                    , xml-types
                    , safe
+                   , resourcet
 
 --Executable ndpost
 --  Hs-Source-Dirs:    src

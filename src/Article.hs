@@ -1,105 +1,96 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Article
     ( Article(..)
-    , getArticle
-    , strContain
-    , dump
+    , sinkArticle
     ) where
 
-import Text.HTML.TagSoup
-import Text.HTML.TagSoup.Tree
-import Text.StringLike (StringLike, toString)
+import Data.ByteString (ByteString)
+import Data.Conduit
+import qualified Data.Conduit.List as CL
+import qualified Text.HTML.DOM as DOM
+import Data.XML.Types
+import Data.Text (Text)
+import qualified Data.Text as T
+import Safe
 import Data.Attoparsec.Text
-import Data.Text (Text, pack)
 import Control.Applicative
-import Data.Time
+import Data.Conduit.Attoparsec
+import Data.Default
+import Control.Monad.State
 
-data Article = Article {
-    a_id :: String,
-    a_title :: String,
-    a_link :: String,
-    a_body :: String}
+data Article = Article
+    { articleId :: Maybe Text
+    , isMatch :: Bool
+    }
+  deriving (Show)
 
-instance Show Article where
-    show a = "A {id = " ++ a_id a
-      ++ ", title = " ++ a_title a
-      ++ ", link = " ++ a_link a
-      ++ "\", body = \"" ++ Prelude.take 20 (a_body a) ++ "...\"}"
+instance Default Article where
+    def = Article
+        { articleId = Nothing
+        , isMatch = False
+        }
 
-dump :: Article -> String
-dump a = join [a_id a, a_title a, a_link a]
+nicopeName :: Text -> Name 
+nicopeName t = Name
+    { nameLocalName = t
+    , nameNamespace = Nothing
+    , namePrefix = Nothing
+    }
+
+isTagId :: Text -> Event -> Bool
+isTagId tid (EventBeginElement _ attrs) = f attrs
   where
-    join []     = error "dump error"
-    join [f]    = f
-    join (f:fs) = f ++ "," ++ join fs
+    f as = case lookup (nicopeName "id") as >>= headMay of
+        Nothing -> False
+        Just (ContentText c)  -> c == tid
+        Just _  -> False
+isTagId _ _ = False
 
-getArticle :: String -> Either String Article
-getArticle content = do
-    abody <- getBody tags
-    aid <- getId abody
-    return Article {
-      a_id = aid,
-      a_title = "",
-      a_link = "http://dic.nicovideo.jp/id/" ++ aid,
-      a_body = abody}
+contents :: MonadThrow m => GLConduit Event m Text
+contents = contents' 0
   where
-    tags = parseTags content
+    contents' :: MonadThrow m => Int -> GLConduit Event m Text
+    contents' l = await >>= maybe (return ()) proc
+      where
+        proc (EventContent (ContentText c)) = yield c >> contents' l
+        proc (EventBeginElement _ _)        = contents' (l+1)
+        proc e@(EventEndElement _)          = if l == 0
+            then leftover e >> return ()
+            else contents' (l-1)
+        proc _                              = contents' l
 
-getId :: String -> Either String String
-getId article = case parse (inFix artId) (pack article) of
-    Fail _ _ msg -> Left msg
-    Partial _    -> Left "error"
-    Done _ r     -> Right r
+conduitDropWhile :: Monad m => (i -> Bool) -> GConduit i m i
+conduitDropWhile f = await >>= maybe (return ()) g
   where
-    artId :: Parser String
-    artId = string (pack "ページ番号: ") *> many1 digit
+    g i | f i       = conduitDropWhile f
+        | otherwise = yield i >> conduitDropWhile (const False)
 
-inFix :: Parser a -> Parser a
-inFix p = try p <|> (anyChar *> inFix p)
+articleIdParser :: StateT Article Parser ()
+articleIdParser = stateParser
+    (string "ページ番号: " *> (T.pack <$> many1 digit))
+    (\s a -> s{articleId = Just a})
 
-getArticleTree :: (StringLike str, Show str) =>
-    [Tag str] -> [TagTree str]
-getArticleTree = search "div" "article" . tagTree
+keywordsParser :: [Text] -> StateT Article Parser ()
+keywordsParser keys = stateParser
+    (choice $ string <$> keys)
+    (\s _ -> s{isMatch = True})
 
-getBody :: (StringLike str, Show str) =>
-    [Tag str] -> Either String String
-getBody tags = Right $ plane $ getArticleTree tags
+stateParser :: Parser a -> (s -> a -> s) -> StateT s Parser ()
+stateParser p f = f <$> get <*> (lift $ try p) >>= put
 
-plane :: (StringLike str) => [TagTree str] -> String
-plane tree = plane' "" $ flattenTree tree
+articleParser :: [Text] -> StateT Article Parser ()
+articleParser keywords = () <$ many inner
   where
-    plane' :: StringLike str => String -> [Tag str] -> String
-    plane' r []                 = r
-    plane' r (TagText str:ts) = plane' (r ++ toString str) ts
-    plane' r (_:ts)             = plane' r ts
+    inner = choice parsers <|> (lift anyChar *> inner)
+    parsers =
+        [ articleIdParser
+        , keywordsParser keywords
+        ]
 
-search :: (StringLike str) =>
-    String -> String -> [TagTree str] -> [TagTree str]
-search tag attrid = search'
+sinkArticle :: MonadThrow m => [Text] -> Sink ByteString m Article
+sinkArticle keywords = DOM.eventConduit =$ do
+    conduitDropWhile (not . isTagId "article") =$ CL.drop 1
+    contents =$ sinkArticle'
   where
-    search' :: StringLike str => [TagTree str] -> [TagTree str]
-    search' [] = []
-    search' (TagBranch tagname as children:ts)
-      | toString tagname == tag
-        && matchAttrId as attrid = children
-      | otherwise                = search' $ children ++ ts
-    search' (_:ts) = search' ts
-
-    matchAttrId :: StringLike str =>
-        [Attribute str] -> String -> Bool
-    matchAttrId [] _ = False
-    matchAttrId ((n,v):as) aid
-      | toString n == "id"
-       && toString v == aid = True
-      | otherwise           = matchAttrId as aid
-
-strContain :: [String] -> Article -> Bool
-strContain []   _       = True
-strContain keys article =
-  case parse (contain keys) (pack $ a_body article) of
-    Done {}   -> True
-    Fail {}   -> False
-    Partial _ -> False
-  where
-    contain :: [String] -> Parser Text
-    contain ks = inFix $ choice $ string <$> map pack ks
-
+    sinkArticle' :: MonadThrow m => Sink Text m Article
+    sinkArticle' = sinkParser $ execStateT (articleParser keywords) def

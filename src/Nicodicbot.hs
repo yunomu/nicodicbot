@@ -14,6 +14,7 @@ import Data.Functor
 
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Control
+import Control.Monad.Trans.Resource
 
 import Config
 --import Article
@@ -26,8 +27,9 @@ curl url = do
     manager <- liftIO $ newManager def
     responseBody <$> http request manager
 
-procArticle :: Item -> IO ()
-procArticle item = runResourceT $ do
+procArticle :: (MonadResource m, MonadBaseControl IO m)
+    => Item -> m ()
+procArticle item = do
     body <- (curl $ BC.unpack $ link item) >>= ($$+- CB.take 10240)
     liftIO $ print item
 
@@ -35,8 +37,8 @@ procEntries :: (MonadResource m, MonadBaseControl IO m) =>
     GLSink ByteString m ()
 procEntries = do
     item <- itemParser
---    liftIO $ forkIO $ procArticle item
-    liftIO $ procArticle item
+--    resourceForkIO $ procArticle item
+--    procArticle item
     procEntries
 
 main :: IO ()
