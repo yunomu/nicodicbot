@@ -59,11 +59,11 @@ contents = contents' 0
             else contents' (l-1)
         proc _                              = contents' l
 
-conduitDropWhile :: Monad m => (i -> Bool) -> GConduit i m i
-conduitDropWhile f = await >>= maybe (return ()) g
+sinkDropWhile :: Monad m => (i -> Bool) -> GLSink i m ()
+sinkDropWhile f = await >>= maybe (return ()) g
   where
-    g i | f i       = conduitDropWhile f
-        | otherwise = yield i >> conduitDropWhile (const False)
+    g i | f i       = sinkDropWhile f
+        | otherwise = leftover i >> return ()
 
 articleIdParser :: StateT Article Parser ()
 articleIdParser = stateParser
@@ -89,8 +89,6 @@ articleParser keywords = () <$ many inner
 
 sinkArticle :: MonadThrow m => [Text] -> Sink ByteString m Article
 sinkArticle keywords = DOM.eventConduit =$ do
-    conduitDropWhile (not . isTagId "article") =$ CL.drop 1
-    contents =$ sinkArticle'
-  where
-    sinkArticle' :: MonadThrow m => Sink Text m Article
-    sinkArticle' = sinkParser $ execStateT (articleParser keywords) def
+    sinkDropWhile (not . isTagId "article")
+    CL.drop 1
+    contents =$ sinkParser (execStateT (articleParser keywords) def)
