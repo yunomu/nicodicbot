@@ -26,7 +26,6 @@ Executable nicodicbot
                    , old-locale
                    , time
                    , network
-                   , data-default
                    , authenticate-oauth
                    , bytestring
                    , http-conduit
@@ -45,6 +44,7 @@ Executable nicodicbot
                    , resourcet
                    , lifted-base
                    , concurrent-extra
+                   , containers
 
 --Executable ndpost
 --  Hs-Source-Dirs:    src

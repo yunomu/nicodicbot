@@ -1,34 +1,48 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Article
     ( Article(..)
     , sinkArticle
+    , idLink
     ) where
 
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as BC
+import Data.Text (Text)
+import qualified Data.Text as T
+
 import Data.Conduit
 import qualified Data.Conduit.List as CL
 import qualified Text.HTML.DOM as DOM
 import Data.XML.Types
-import Data.Text (Text)
-import qualified Data.Text as T
-import Safe
 import Data.Attoparsec.Text
-import Control.Applicative
 import Data.Conduit.Attoparsec
-import Data.Default
+import Control.Applicative
 import Control.Monad.State
+import Safe
+import Data.Monoid
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Time
+
+import RssParser
 
 data Article = Article
-    { articleId :: Maybe Text
+    { articleId :: ByteString
+    , articleTitle :: ByteString
+    , articleUpdate :: ZonedTime
     , isMatch :: Bool
     }
   deriving (Show)
 
-instance Default Article where
-    def = Article
-        { articleId = Nothing
-        , isMatch = False
-        }
+data ArticleInfo = AIText Text | AIExist
+type ArticleTmp = Map Text ArticleInfo
+
+idLink :: Article -> ByteString
+idLink a = "http://dic.nicovideo.jp/id/" <> articleId a
+
+toBS :: Text -> ByteString
+toBS = BC.pack . T.unpack
 
 nicopeName :: Text -> Name 
 nicopeName t = Name
@@ -65,20 +79,20 @@ sinkDropWhile f = await >>= maybe (return ()) g
     g i | f i       = sinkDropWhile f
         | otherwise = leftover i >> return ()
 
-articleIdParser :: StateT Article Parser ()
+articleIdParser :: StateT ArticleTmp Parser ()
 articleIdParser = stateParser
     (string "ページ番号: " *> (T.pack <$> many1 digit))
-    (\s a -> s{articleId = Just a})
+    (\s a -> Map.insert "articleId" (AIText a) s)
 
-keywordsParser :: [Text] -> StateT Article Parser ()
+keywordsParser :: [Text] -> StateT ArticleTmp Parser ()
 keywordsParser keys = stateParser
     (choice $ string <$> keys)
-    (\s _ -> s{isMatch = True})
+    (\s _ -> Map.insert "match" AIExist s)
 
 stateParser :: Parser a -> (s -> a -> s) -> StateT s Parser ()
 stateParser p f = f <$> get <*> (lift $ try p) >>= put
 
-articleParser :: [Text] -> StateT Article Parser ()
+articleParser :: [Text] -> StateT ArticleTmp Parser ()
 articleParser keywords = () <$ many inner
   where
     inner = choice parsers <|> (lift anyChar *> inner)
@@ -87,8 +101,19 @@ articleParser keywords = () <$ many inner
         , keywordsParser keywords
         ]
 
-sinkArticle :: MonadThrow m => [Text] -> Sink ByteString m Article
-sinkArticle keywords = DOM.eventConduit =$ do
+sinkArticle :: MonadThrow m => Item -> [Text] -> Sink ByteString m Article
+sinkArticle item keywords = DOM.eventConduit =$ do
     sinkDropWhile (not . isTagId "article")
     CL.drop 1
-    contents =$ sinkParser (execStateT (articleParser keywords) def)
+    contents =$ do
+        tmp <- sinkParser (execStateT (articleParser keywords) Map.empty)
+        aid <- maybe
+            (fail "article id not found")
+            (\(AIText aid) -> return $ toBS aid)
+            $ Map.lookup "articleId" tmp
+        return Article
+            { articleId = aid
+            , articleTitle = title item
+            , articleUpdate = date item
+            , isMatch = Map.member "match" tmp
+            }
