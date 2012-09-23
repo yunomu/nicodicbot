@@ -18,6 +18,7 @@ import Data.Conduit.Attoparsec
 import Data.Text (Text)
 import qualified Data.Text as T
 import Control.Concurrent.Event
+import Data.Monoid
 
 import Config
 import Article
@@ -30,9 +31,12 @@ curl url = do
     manager <- liftIO $ newManager def
     responseBody <$> http request manager
 
+ignoreHttp :: Monad m => HttpException -> m ()
+ignoreHttp _ = return ()
+
 procArticle :: (MonadResource m, MonadBaseControl IO m)
     => [Text] -> Item -> m ()
-procArticle keys item = do
+procArticle keys item = E.handle ignoreArticle $ E.handle ignoreHttp $ do
     a <- (curl $ BC.unpack $ link item) >>= ($$+- sinkArticle item keys)
     if isMatch a
         then storeArticle a
@@ -41,7 +45,9 @@ procArticle keys item = do
 storeArticle :: (MonadResource m, MonadBaseControl IO m)
     => Article -> m ()
 storeArticle a = do
-    liftIO $ print a
+    liftIO $ do
+        BC.putStr $ mconcat [articleTitle a, ",", idLink a, ","]
+        print $ articleUpdate a
 
 procEntries :: (MonadResource m, MonadBaseControl IO m)
     => [Text] -> ResumableSource m ByteString -> m ()
@@ -51,16 +57,16 @@ procEntries keys src0 = procEntries' src0 []
         (src1, item) <- src $$++ itemParser
         e <- forkProc $ procArticle keys item
         let nes = e:es
-        E.handle (ignore nes) $ procEntries' src1 nes
+        E.handle (ignoreParser nes) $ procEntries' src1 nes
     forkProc proc = do
         event <- liftIO new
         runResourceT $ resourceForkIO $ withEvent event proc
         return event
     withEvent event proc = E.finally proc $ liftIO $ set event
 
-ignore :: (MonadResource m, MonadBaseControl IO m)
+ignoreParser :: (MonadResource m, MonadBaseControl IO m)
     => [Event] -> ParseError -> m ()
-ignore es _ = liftIO $ mapM_ wait es
+ignoreParser es _ = liftIO $ mapM_ wait es
 
 main :: IO ()
 main = do

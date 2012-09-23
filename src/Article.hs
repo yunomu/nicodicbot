@@ -1,9 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module Article
     ( Article(..)
+    , ArticleParseException(..)
     , sinkArticle
     , idLink
+    , ignoreArticle
     ) where
 
 import Data.ByteString (ByteString)
@@ -16,6 +19,7 @@ import qualified Data.Conduit.List as CL
 import qualified Text.HTML.DOM as DOM
 import Data.XML.Types
 import Data.Attoparsec.Text
+import qualified Data.Attoparsec.Text as AT
 import Data.Conduit.Attoparsec
 import Control.Applicative
 import Control.Monad.State
@@ -24,8 +28,16 @@ import Data.Monoid
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Time
+import Data.Typeable (Typeable)
+import Control.Exception.Lifted as E
 
 import RssParser
+
+data ArticleParseException
+    = ArticleIdNotFound
+  deriving (Show, Typeable)
+
+instance Exception ArticleParseException
 
 data Article = Article
     { articleId :: ByteString
@@ -34,6 +46,9 @@ data Article = Article
     , isMatch :: Bool
     }
   deriving (Show)
+
+ignoreArticle :: Monad m => ArticleParseException -> m ()
+ignoreArticle _ = return ()
 
 data ArticleInfo = AIText Text | AIExist
 type ArticleTmp = Map Text ArticleInfo
@@ -90,7 +105,7 @@ keywordsParser keys = stateParser
     (\s _ -> Map.insert "match" AIExist s)
 
 stateParser :: Parser a -> (s -> a -> s) -> StateT s Parser ()
-stateParser p f = f <$> get <*> (lift $ try p) >>= put
+stateParser p f = f <$> get <*> (lift $ AT.try p) >>= put
 
 articleParser :: [Text] -> StateT ArticleTmp Parser ()
 articleParser keywords = () <$ many inner
@@ -108,7 +123,7 @@ sinkArticle item keywords = DOM.eventConduit =$ do
     contents =$ do
         tmp <- sinkParser (execStateT (articleParser keywords) Map.empty)
         aid <- maybe
-            (fail "article id not found")
+            (E.throw ArticleIdNotFound)
             (\(AIText aid) -> return $ toBS aid)
             $ Map.lookup "articleId" tmp
         return Article
