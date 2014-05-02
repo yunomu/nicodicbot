@@ -1,5 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings, DeriveDataTypeable, RankNTypes #-}
 
 module Article
     ( Article(..)
@@ -75,10 +74,10 @@ isTagId tid (EventBeginElement _ attrs) = f attrs
         Just _  -> False
 isTagId _ _ = False
 
-contents :: MonadThrow m => GLConduit Event m Text
+contents :: MonadThrow m => Conduit Event m Text
 contents = contents' 0
   where
-    contents' :: MonadThrow m => Int -> GLConduit Event m Text
+    contents' :: MonadThrow m => Int -> Conduit Event m Text
     contents' l = await >>= maybe (return ()) proc
       where
         proc (EventContent (ContentText c)) = yield c >> contents' l
@@ -88,7 +87,7 @@ contents = contents' 0
             else contents' (l-1)
         proc _                              = contents' l
 
-sinkDropWhile :: Monad m => (i -> Bool) -> GLSink i m ()
+sinkDropWhile :: Monad m => (i -> Bool) -> Consumer i m ()
 sinkDropWhile f = await >>= maybe (return ()) g
   where
     g i | f i       = sinkDropWhile f

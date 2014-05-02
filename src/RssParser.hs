@@ -20,7 +20,7 @@ data Item = Item {
   } deriving Show
 
 
-itemParser :: MonadThrow m => GLSink ByteString m Item
+itemParser :: MonadThrow m => Consumer ByteString m Item
 itemParser = sinkParser item
 
 item :: Parser Item

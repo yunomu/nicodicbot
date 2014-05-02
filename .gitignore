@@ -1,5 +1,9 @@
-*.o
-*.hi
 dist
 test
 cabal-dev
+.cabal-sandbox
+cabal.sandbox.config
+.bundle
+nicodicbot
+nicodicbot.config
+vendor

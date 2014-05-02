@@ -19,7 +19,7 @@ Executable nicodicbot
   Main-is:           Nicodicbot.hs
   GHC-Options:       -threaded -Wall -fno-warn-unused-do-bind
   Build-depends:     base
-                   , parsec3
+                   , parsec
                    , utf8-string
                    , attoparsec
                    , text
@@ -29,9 +29,9 @@ Executable nicodicbot
                    , authenticate-oauth
                    , bytestring
                    , http-conduit
-                   , conduit == 0.5.*
+                   , conduit
                    , transformers
-                   , attoparsec-conduit == 0.5.*
+                   , attoparsec-conduit
                    , failure
                    , monad-control
                    , template-haskell
@@ -41,7 +41,7 @@ Executable nicodicbot
                    , xml-conduit
                    , xml-types
                    , safe
-                   , resourcet
+                   , resourcet >= 0.3 && < 0.5
                    , lifted-base
                    , concurrent-extra
                    , containers

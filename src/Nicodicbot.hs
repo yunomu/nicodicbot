@@ -28,7 +28,7 @@ curl :: (MonadResource m, MonadBaseControl IO m) =>
     String -> m (ResumableSource m ByteString)
 curl url = do
     request <- liftIO $ parseUrl url
-    manager <- liftIO $ newManager def
+    manager <- liftIO $ newManager conduitManagerSettings
     responseBody <$> http request manager
 
 ignoreHttp :: Monad m => HttpException -> m ()
