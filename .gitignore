@@ -7,3 +7,4 @@ cabal.sandbox.config
 nicodicbot
 nicodicbot.config
 vendor
+ndcache.txt
