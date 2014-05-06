@@ -1,34 +1,41 @@
-{-# LANGUAGE OverloadedStrings, DeriveDataTypeable, RankNTypes #-}
+{-# LANGUAGE DeriveDataTypeable, RankNTypes #-}
 
 module Article
     ( Article(..)
     , ArticleParseException(..)
-    , sinkArticle
+    , parseArticle
     , idLink
     , ignoreArticle
     ) where
 
+import Control.Applicative
+import Control.Exception.Lifted as E
+import Control.Monad.State (StateT)
+import qualified Control.Monad.State as State
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Resource (MonadThrow, runResourceT)
+import Data.Attoparsec.Text (Parser)
+import qualified Data.Attoparsec.Text as A
+import qualified Data.Attoparsec.Text as AT
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BC
-import Data.Text (Text)
-import qualified Data.Text as T
-
-import Data.Conduit
+import Data.Conduit (Conduit, Producer, Consumer, (=$), ($$))
+import qualified Data.Conduit as C
 import qualified Data.Conduit.List as CL
-import qualified Text.HTML.DOM as DOM
-import Data.XML.Types
-import Data.Attoparsec.Text
-import qualified Data.Attoparsec.Text as AT
-import Data.Conduit.Attoparsec
-import Control.Applicative
-import Control.Monad.State
-import Safe
-import Data.Monoid
+import Data.Conduit.Attoparsec (sinkParser)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Monoid
+import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time
 import Data.Typeable (Typeable)
-import Control.Exception.Lifted as E
+import Data.XML.Types
+import Safe
+import System.IO.Streams (InputStream)
+import qualified System.IO.Streams as Streams
+import qualified Text.HTML.DOM as DOM
 
 import RssParser
 
@@ -78,56 +85,62 @@ contents :: MonadThrow m => Conduit Event m Text
 contents = contents' 0
   where
     contents' :: MonadThrow m => Int -> Conduit Event m Text
-    contents' l = await >>= maybe (return ()) proc
+    contents' l = C.await >>= maybe (return ()) proc
       where
-        proc (EventContent (ContentText c)) = yield c >> contents' l
+        proc (EventContent (ContentText c)) = C.yield c >> contents' l
         proc (EventBeginElement _ _)        = contents' (l+1)
         proc e@(EventEndElement _)          = if l == 0
-            then leftover e >> return ()
+            then C.leftover e >> return ()
             else contents' (l-1)
         proc _                              = contents' l
 
 sinkDropWhile :: Monad m => (i -> Bool) -> Consumer i m ()
-sinkDropWhile f = await >>= maybe (return ()) g
+sinkDropWhile f = C.await >>= maybe (return ()) g
   where
     g i | f i       = sinkDropWhile f
-        | otherwise = leftover i >> return ()
+        | otherwise = C.leftover i >> return ()
 
 articleIdParser :: StateT ArticleTmp Parser ()
 articleIdParser = stateParser
-    (string "ページ番号: " *> (T.pack <$> many1 digit))
+    (A.string "ページ番号: " *> (T.pack <$> A.many1 A.digit))
     (\s a -> Map.insert "articleId" (AIText a) s)
 
 keywordsParser :: [Text] -> StateT ArticleTmp Parser ()
 keywordsParser keys = stateParser
-    (choice $ string <$> keys)
+    (A.choice $ A.string <$> keys)
     (\s _ -> Map.insert "match" AIExist s)
 
 stateParser :: Parser a -> (s -> a -> s) -> StateT s Parser ()
-stateParser p f = f <$> get <*> (lift $ AT.try p) >>= put
+stateParser p f = f <$> State.get <*> (lift $ AT.try p) >>= State.put
 
 articleParser :: [Text] -> StateT ArticleTmp Parser ()
 articleParser keywords = () <$ many inner
   where
-    inner = choice parsers <|> (lift anyChar *> inner)
+    inner = A.choice parsers <|> (lift A.anyChar *> inner)
     parsers =
         [ articleIdParser
         , keywordsParser keywords
         ]
 
-sinkArticle :: MonadThrow m => Item -> [Text] -> Sink ByteString m Article
-sinkArticle item keywords = DOM.eventConduit =$ do
-    sinkDropWhile (not . isTagId "article")
-    CL.drop 1
-    contents =$ do
-        tmp <- sinkParser (execStateT (articleParser keywords) Map.empty)
-        aid <- maybe
-            (E.throw ArticleIdNotFound)
-            (\(AIText aid) -> return $ toBS aid)
-            $ Map.lookup "articleId" tmp
-        return Article
-            { articleId = aid
-            , articleTitle = title item
-            , articleUpdate = date item
-            , isMatch = Map.member "match" tmp
-            }
+streamToProducer :: MonadIO m => InputStream a -> Producer m a
+streamToProducer is = liftIO (Streams.read is) >>=
+    maybe (return ()) (\a -> C.yield a >> streamToProducer is)
+
+parseArticle :: [Text] -> Item -> InputStream ByteString -> IO Article
+parseArticle keywords item is = runResourceT
+    $ streamToProducer is $$ DOM.eventConduit =$ do
+        sinkDropWhile (not . isTagId "article")
+        CL.drop 1
+        contents =$ do
+            tmp <- sinkParser
+                $ State.execStateT (articleParser keywords) Map.empty
+            aid <- maybe
+                (E.throw ArticleIdNotFound)
+                (\(AIText aid) -> return $ toBS aid)
+                $ Map.lookup "articleId" tmp
+            return Article
+                { articleId = aid
+                , articleTitle = title item
+                , articleUpdate = date item
+                , isMatch = Map.member "match" tmp
+                }

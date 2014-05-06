@@ -1,17 +1,18 @@
-{-# LANGUAGE OverloadedStrings #-}
 module RssParser
-    (Item(..), itemParser) where
+    ( Item(..)
+    , itemParser
+    ) where
 
 import Control.Applicative
-import Data.Attoparsec
-import Data.ByteString
+import Data.Attoparsec (Parser)
+import qualified Data.Attoparsec as A
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BC
-import Data.Conduit
-import Data.Conduit.Attoparsec (sinkParser)
-import Data.Time
-import System.Locale
-
---import ParserLib
+import Data.Time (ZonedTime, ParseTime, parseTime)
+import System.IO.Streams (InputStream)
+import qualified System.IO.Streams.Attoparsec as SA
+import System.Locale (defaultTimeLocale)
 
 data Item = Item {
     title :: ByteString,
@@ -19,9 +20,10 @@ data Item = Item {
     date :: ZonedTime
   } deriving Show
 
-
-itemParser :: MonadThrow m => Consumer ByteString m Item
-itemParser = sinkParser item
+itemParser :: InputStream ByteString -> IO (InputStream Item)
+itemParser = SA.parserToInputStream p
+  where
+    p = (A.endOfInput >> return Nothing) <|> (Just <$> item)
 
 item :: Parser Item
 item = tag "item" $ do
@@ -38,23 +40,23 @@ item = tag "item" $ do
 
 tag :: ByteString -> Parser a -> Parser a
 tag str p = do
-    inFix $ string $ BC.concat ["<", str]
+    inFix $ A.string $ BC.concat ["<", str]
     many space
-    inFix $ string ">"
+    inFix $ A.string ">"
     ret <- p
-    inFix $ string $ BC.concat ["</", str, ">"]
+    inFix $ A.string $ BC.concat ["</", str, ">"]
     next
     return ret
 
 space :: Parser ()
-space = skip $ inClass " \t\r\n"
+space = A.skip $ A.inClass " \t\r\n"
 
 next :: Parser ByteString
-next = pack <$> (many $ satisfy $ notf $ inClass "<")
+next = BS.pack <$> (many $ A.satisfy $ notf $ A.inClass "<")
 
 notf :: (a -> Bool) -> a -> Bool
 notf f v = not $ f v
 
 inFix :: Parser a -> Parser a
-inFix p = try p <|> anyWord8 *> inFix p
+inFix p = A.try p <|> A.anyWord8 *> inFix p
 

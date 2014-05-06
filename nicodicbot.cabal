@@ -16,8 +16,9 @@ Data-Files:          nicodicbot.config.sample
 
 Executable nicodicbot
   Hs-Source-Dirs:    src
-  Main-is:           Nicodicbot.hs
+  Main-is:           Main.hs
   GHC-Options:       -threaded -Wall -fno-warn-unused-do-bind
+  Default-Extensions: OverloadedStrings
   Build-depends:     base
                    , parsec
                    , utf8-string
@@ -26,10 +27,11 @@ Executable nicodicbot
                    , old-locale
                    , time
                    , network
-                   , authenticate-oauth
+--                   , authenticate-oauth
                    , bytestring
                    , http-conduit
                    , conduit
+                   , conduit-extra
                    , transformers
                    , attoparsec-conduit
                    , failure
@@ -41,10 +43,12 @@ Executable nicodicbot
                    , xml-conduit
                    , xml-types
                    , safe
-                   , resourcet >= 0.3 && < 0.5
+                   , resourcet
                    , lifted-base
                    , concurrent-extra
                    , containers
+                   , io-streams
+                   , http-streams
 
 --Executable ndpost
 --  Hs-Source-Dirs:    src
